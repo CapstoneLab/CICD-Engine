@@ -1,0 +1,21 @@
+name: sample-java5-security-scan
+runtime:
+  type: node
+steps:
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: normalize-fixture-extensions
+    run: >-
+      bash -c "for f in scanner-fixtures/*.java.txt; do [ -f \"$f\" ] && mv \"$f\" \"${f%.txt}\"; done; true"
+    continue_on_failure: true
+
+  - name: deep-security
+    uses: deep_security_scan
+    continue_on_failure: true
+    args:
+      report_file: semgrep_report.json
+      ai_recommendation: true

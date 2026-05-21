@@ -2,8 +2,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
+
+
+def _reexec_in_venv_if_needed() -> None:
+    base_dir = Path(__file__).resolve().parent
+    venv_python = base_dir / ".venv" / "bin" / "python"
+    if not venv_python.exists():
+        return
+    if os.environ.get("LOCAL_CI_VENV_REEXEC") == "1":
+        return
+    venv_site = base_dir / ".venv" / "lib"
+    already_in_venv = any(str(venv_site) in p for p in sys.path)
+    if already_in_venv:
+        return
+    os.environ["LOCAL_CI_VENV_REEXEC"] = "1"
+    os.execv(str(venv_python), [str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]])
+
+
+_reexec_in_venv_if_needed()
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from app.callback import (
     build_callback_payload,
@@ -30,6 +53,24 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--callback-url", default="", help="Windows callback API URL")
     parser.add_argument("--callback-token", default="", help="Shared callback auth token")
+    parser.add_argument(
+        "--source",
+        default="capstone",
+        choices=["capstone", "mirae"],
+        help=(
+            "Request source. capstone: run both gitleaks + semgrep. "
+            "mirae: skip gitleaks, run semgrep only"
+        ),
+    )
+    parser.add_argument(
+        "--environment",
+        default="development",
+        choices=["production", "staging", "development", "feature"],
+        help=(
+            "Deployment environment for security gate thresholds. "
+            "production=85, staging=75, development=60, feature=50 minimum score"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -47,12 +88,20 @@ def main() -> int:
         callback_url=callback_url,
         callback_token=callback_token,
         job_id=job_id,
+        source=args.source,
+        environment=args.environment,
     )
     pipeline_run, run_dir = orchestrator.run(
         repo_url=args.repo,
         branch=branch,
         workflow_path=args.workflow or None,
     )
+
+    security_summaries_data = _load_json_list(run_dir / "security_summary.json")
+    security_findings_data = _load_json_list(run_dir / "security_findings.json")
+    security_verdict_data = _load_json_object(run_dir / "security_verdict.json")
+
+    deploy_endpoint = _load_json_object(run_dir / "deploy_endpoint.json")
 
     if callback_url:
         final_job_id = job_id or pipeline_run.run_id
@@ -63,8 +112,14 @@ def main() -> int:
             branch=branch,
             pipeline_run=pipeline_run,
             logs=logs,
+            security_summaries=security_summaries_data,
+            security_findings=security_findings_data,
+            security_verdict=security_verdict_data,
         )
         payload["type"] = "pipeline_complete"
+        if deploy_endpoint:
+            payload.setdefault("metadata", {})
+            payload["metadata"]["service"] = deploy_endpoint
 
         callback_result_path = save_callback_payload(run_dir, payload)
 
@@ -140,7 +195,86 @@ def main() -> int:
         for step in pipeline_run.steps:
             print(f"- {step.step_name}: {step.status} ({step.summary_message or 'no message'})")
 
+    _print_security_verdict(security_verdict_data)
+    _print_security_findings(security_findings_data)
+
     return 0 if pipeline_run.status == "success" else 1
+
+
+def _load_json_list(file_path: Path) -> list[dict]:
+    if not file_path.exists():
+        return []
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _load_json_object(file_path: Path) -> dict | None:
+    if not file_path.exists():
+        return None
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _print_security_verdict(verdict: dict | None) -> None:
+    if not verdict:
+        return
+    v = str(verdict.get("verdict", "")).upper()
+    score = verdict.get("score", 0)
+    env = verdict.get("environment", "?")
+    counts = verdict.get("counts", {})
+    print(f"\n=== Security Gate ===")
+    print(f"verdict: {v} | score: {score} | environment: {env}")
+    print(
+        f"counts: critical={counts.get('critical',0)} high={counts.get('high',0)} "
+        f"medium={counts.get('medium',0)} low={counts.get('low',0)}"
+    )
+    block_reasons = verdict.get("block_reasons") or []
+    warn_reasons = verdict.get("warn_reasons") or []
+    if block_reasons:
+        print("BLOCK reasons:")
+        for r in block_reasons:
+            print(f"  - {r}")
+    if warn_reasons:
+        print("WARN reasons:")
+        for r in warn_reasons:
+            print(f"  - {r}")
+
+
+def _print_security_findings(findings: list[dict]) -> None:
+    if not findings:
+        return
+
+    severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    sorted_findings = sorted(findings, key=lambda f: severity_order.get(str(f.get("severity", "")).lower(), 4))
+
+    print(f"\n=== Security Findings ({len(sorted_findings)}) ===")
+    for i, f in enumerate(sorted_findings, 1):
+        severity = str(f.get("severity", "unknown")).upper()
+        scanner = f.get("scanner_name", "unknown")
+        rule_id = f.get("rule_id", "unknown")
+        file_path = f.get("file_path", "")
+        line_number = f.get("line_number", 0)
+        message = f.get("message", "")
+        cvss = f.get("cvss_score")
+        ai_rec = f.get("ai_recommendation")
+
+        header_bits = [f"[{severity}]"]
+        if cvss is not None:
+            header_bits.append(f"cvss={cvss:.1f}")
+        header_bits.append(f"{scanner}:{rule_id}")
+        print(f"\n[{i}] {' '.join(header_bits)}")
+        print(f"    location: {file_path}:{line_number}")
+        print(f"    issue: {message}")
+        if ai_rec:
+            print(f"    ai-fix: {ai_rec}")
+        else:
+            print("    ai-fix: (not generated — check ANTHROPIC_API_KEY or semgrep findings count)")
 
 
 if __name__ == "__main__":

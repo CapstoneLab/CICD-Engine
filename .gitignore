@@ -24,3 +24,7 @@ workspace/
 Thumbs.db
 .vscode/
 .idea/
+
+# Secrets
+.env
+.env.local

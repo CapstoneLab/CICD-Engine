@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.models import StepRunResult
+from app.scanners.code_snippet import enrich_with_code_snippets, format_snippet_for_log
 from app.scanners.gitleaks_parser import parse_gitleaks_report
 from app.utils.executable import resolve_executable
 from app.utils.shell import run_command
@@ -48,6 +49,7 @@ def run_lightweight_security_scan(repo_dir: Path, log_file: Path, report_file: P
         )
 
     summary, findings = parse_gitleaks_report(report_file)
+    enrich_with_code_snippets(findings, repo_dir, gitleaks_report=report_file)
     found_count = len(findings)
 
     _log_gitleaks_findings(log_file, findings)
@@ -57,7 +59,7 @@ def run_lightweight_security_scan(repo_dir: Path, log_file: Path, report_file: P
             status="success",
             exit_code=0,
             summary_message=(
-                f"gitleaks found {found_count} potential secret(s) (non-blocking policy)"
+                f"gitleaks found {found_count} secret(s) — auto-classified as Critical (security_gate decides)"
             ),
             security_summary=summary,
             security_findings=findings,
@@ -82,3 +84,8 @@ def _log_gitleaks_findings(log_file: Path, findings: list) -> None:
     append_log(log_file, f"[gitleaks] {len(findings)} secret(s) found:")
     for i, f in enumerate(findings, 1):
         append_log(log_file, f"  [{i}] rule={f.rule_id} | {f.file_path}:{f.line_number} | {f.title}")
+        if f.code_snippet and f.code_snippet_start_line:
+            append_log(
+                log_file,
+                f"      [CODE-SNIPPET] {format_snippet_for_log(f.code_snippet, f.code_snippet_start_line)}",
+            )

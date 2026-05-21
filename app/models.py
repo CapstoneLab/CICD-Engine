@@ -19,6 +19,9 @@ class SecurityFinding:
     line_number: int
     message: str
     cvss_score: float | None = None
+    ai_recommendation: str | None = None
+    code_snippet: str | None = None
+    code_snippet_start_line: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

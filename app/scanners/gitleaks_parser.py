@@ -39,11 +39,11 @@ def parse_gitleaks_report(report_file: Path) -> tuple[SecuritySummary, list[Secu
             SecurityFinding(
                 scanner_name="gitleaks",
                 rule_id=str(item.get("RuleID", "unknown")),
-                severity="high",
+                severity="critical",
                 title=str(item.get("Description", "Potential secret detected")),
                 file_path=str(item.get("File", "")),
                 line_number=int(item.get("StartLine", item.get("Line", 0)) or 0),
-                message="Potential secret pattern detected",
+                message="Hardcoded secret detected (auto-classified as Critical per security policy)",
                 cvss_score=None,
             )
         )
@@ -52,10 +52,10 @@ def parse_gitleaks_report(report_file: Path) -> tuple[SecuritySummary, list[Secu
     summary = SecuritySummary(
         scanner_name="gitleaks",
         scan_type="lightweight",
-        critical_count=0,
-        high_count=count,
+        critical_count=count,
+        high_count=0,
         medium_count=0,
         low_count=0,
-        max_detected_severity="high" if count > 0 else "none",
+        max_detected_severity="critical" if count > 0 else "none",
     )
     return summary, findings

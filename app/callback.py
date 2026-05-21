@@ -17,6 +17,9 @@ def build_callback_payload(
     branch: str,
     pipeline_run: PipelineRun,
     logs: list[str],
+    security_summaries: list[dict[str, Any]] | None = None,
+    security_findings: list[dict[str, Any]] | None = None,
+    security_verdict: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "job_id": job_id,
@@ -38,6 +41,11 @@ def build_callback_payload(
             }
             for step in pipeline_run.steps
         ],
+        "security": {
+            "summaries": security_summaries or [],
+            "findings": security_findings or [],
+            "verdict": security_verdict,
+        },
         "metadata": {
             "executor": "ubuntu-ci-engine",
             "run_id": pipeline_run.run_id,
@@ -188,6 +196,8 @@ def build_step_callback_payload(
     pipeline_run: PipelineRun,
     step: Any,
     step_log: list[str],
+    step_security_summary: dict[str, Any] | None = None,
+    step_security_findings: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "job_id": job_id,
@@ -204,6 +214,10 @@ def build_step_callback_payload(
             "finished_at": step.finished_at,
             "log_file": step.log_file,
             "logs": step_log,
+            "security": {
+                "summary": step_security_summary,
+                "findings": step_security_findings or [],
+            },
         },
         "metadata": {
             "executor": "ubuntu-ci-engine",

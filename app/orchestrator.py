@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from app.callback import build_step_callback_payload, collect_logs, post_step_callback
 from app.constants import RUNTIME_TYPE
 from app.models import PipelineRun, PipelineStep, SecurityFinding, SecuritySummary, StepRunResult, now_iso
+from app.security_policy import SecurityVerdict, evaluate as evaluate_security_policy, format_summary
+from app.utils.env_requirements import find_missing_env_keys
 from app.steps.build import run_build
 from app.steps.clone import run_clone
 from app.steps.deep_security import run_deep_security_scan
@@ -25,12 +28,17 @@ class LocalOrchestrator:
         callback_url: str = "",
         callback_token: str = "",
         job_id: str = "",
+        source: str = "capstone",
+        environment: str = "development",
     ) -> None:
         self.base_dir = base_dir
         self._current_runtime_type: str = RUNTIME_TYPE
         self._callback_url = callback_url
         self._callback_token = callback_token
         self._job_id = job_id
+        self._source = source
+        self._environment = environment
+        self._security_verdict: SecurityVerdict | None = None
 
     def run(self, repo_url: str, branch: str | None, workflow_path: str | None = None) -> tuple[PipelineRun, Path]:
         run_id = make_run_id(self.base_dir)
@@ -77,6 +85,28 @@ class LocalOrchestrator:
             self._write_pipeline_result(run_dir, pipeline_run)
             return pipeline_run, run_dir
 
+        env_check_result = self._check_required_env(repo_dir, logs_dir)
+        if env_check_result is not None:
+            env_step = PipelineStep(step_name="env_check")
+            pipeline_run.steps.append(env_step)
+            env_step.log_file = str((logs_dir / "env_check.log").relative_to(self.base_dir))
+            env_step.started_at = now_iso()
+            self._record_step_result(
+                pipeline_run=pipeline_run,
+                run_dir=run_dir,
+                step=env_step,
+                result=env_check_result,
+                repo_url=repo_url,
+                branch=branch,
+            )
+            if env_check_result.status == "failed":
+                pipeline_run.status = "failed"
+                pipeline_run.finished_at = now_iso()
+                pipeline_run.current_step = env_step.step_name
+                self._write_security_results(run_dir, security_summaries, security_findings)
+                self._write_pipeline_result(run_dir, pipeline_run)
+                return pipeline_run, run_dir
+
         try:
             workflow = resolve_workflow_definition(
                 repo_dir=repo_dir,
@@ -110,17 +140,21 @@ class LocalOrchestrator:
         pipeline_run.workflow_source = workflow.source
         self._current_runtime_type = workflow.runtime_type
 
+        active_step_definitions = [
+            sd for sd in workflow.steps if not self._should_skip_step_for_source(sd)
+        ]
+
         workflow_steps = [
             PipelineStep(
                 step_name=step_definition.name,
                 continue_on_failure=step_definition.continue_on_failure,
             )
-            for step_definition in workflow.steps
+            for step_definition in active_step_definitions
         ]
         pipeline_run.steps.extend(workflow_steps)
         self._write_pipeline_result(run_dir, pipeline_run)
 
-        for step, step_definition in zip(workflow_steps, workflow.steps):
+        for step, step_definition in zip(workflow_steps, active_step_definitions):
             result = self._run_and_record_step(
                 pipeline_run=pipeline_run,
                 step=step,
@@ -148,6 +182,29 @@ class LocalOrchestrator:
                     pipeline_run.status = "failed"
                     pipeline_run.finished_at = now_iso()
                     pipeline_run.current_step = step.step_name
+                    self._write_security_results(run_dir, security_summaries, security_findings)
+                    self._write_pipeline_result(run_dir, pipeline_run)
+                    return pipeline_run, run_dir
+
+            if step_definition.kind == "builtin" and step_definition.uses == "deep_security_scan":
+                gate_result = self._run_security_gate(
+                    pipeline_run=pipeline_run,
+                    findings=security_findings,
+                    logs_dir=logs_dir,
+                    run_dir=run_dir,
+                    repo_url=repo_url,
+                    branch=branch,
+                )
+                if gate_result.status == "failed":
+                    has_failure = True
+                    self._mark_remaining_steps_skipped(
+                        pipeline_run=pipeline_run,
+                        remaining_steps=workflow_steps[workflow_steps.index(step) + 1 :],
+                        reason="Skipped because security_gate blocked the pipeline",
+                    )
+                    pipeline_run.status = "failed"
+                    pipeline_run.finished_at = now_iso()
+                    pipeline_run.current_step = "security_gate"
                     self._write_security_results(run_dir, security_summaries, security_findings)
                     self._write_pipeline_result(run_dir, pipeline_run)
                     return pipeline_run, run_dir
@@ -224,7 +281,7 @@ class LocalOrchestrator:
             append_log(step_log_path, f"[step_exit_code] {step.exit_code if step.exit_code is not None else 'null'}")
 
         self._write_pipeline_result(run_dir, pipeline_run)
-        self._send_step_callback(pipeline_run, run_dir, step, repo_url, branch)
+        self._send_step_callback(pipeline_run, run_dir, step, repo_url, branch, result)
 
     def _send_step_callback(
         self,
@@ -233,6 +290,7 @@ class LocalOrchestrator:
         step: PipelineStep,
         repo_url: str,
         branch: str | None,
+        result: StepRunResult | None = None,
     ) -> None:
         if not self._callback_url or not self._callback_token:
             return
@@ -246,6 +304,14 @@ class LocalOrchestrator:
                 except OSError:
                     pass
 
+        step_security_summary = None
+        step_security_findings: list[dict[str, Any]] = []
+        if result is not None:
+            if result.security_summary:
+                step_security_summary = result.security_summary.to_dict()
+            if result.security_findings:
+                step_security_findings = [item.to_dict() for item in result.security_findings]
+
         job_id = self._job_id or pipeline_run.run_id
         payload = build_step_callback_payload(
             job_id=job_id,
@@ -254,6 +320,8 @@ class LocalOrchestrator:
             pipeline_run=pipeline_run,
             step=step,
             step_log=step_log,
+            step_security_summary=step_security_summary,
+            step_security_findings=step_security_findings,
         )
 
         ok, detail = post_step_callback(
@@ -359,6 +427,7 @@ class LocalOrchestrator:
                 repo_dir=repo_dir,
                 log_file=log_file,
                 report_file=run_dir / report_name,
+                ai_recommendation=True,
             )
 
         if uses_name == "build":
@@ -436,18 +505,104 @@ class LocalOrchestrator:
             summary_message=f"Command step failed: {' '.join(step_definition.command)}",
         )
 
+    def _run_security_gate(
+        self,
+        pipeline_run: PipelineRun,
+        findings: list[SecurityFinding],
+        logs_dir: Path,
+        run_dir: Path,
+        repo_url: str,
+        branch: str | None,
+    ) -> StepRunResult:
+        verdict = evaluate_security_policy(findings, environment=self._environment)
+        self._security_verdict = verdict
+
+        gate_step = PipelineStep(step_name="security_gate")
+        pipeline_run.steps.append(gate_step)
+        gate_step.log_file = str((logs_dir / "security_gate.log").relative_to(self.base_dir))
+        gate_step.started_at = now_iso()
+        log_path = self.base_dir / gate_step.log_file
+        append_log(log_path, f"$ security_gate (environment={verdict.environment})")
+        append_log(log_path, f"[counts] {verdict.counts}")
+        append_log(log_path, f"[score] {verdict.score}")
+        append_log(log_path, f"[thresholds] {verdict.thresholds}")
+        for reason in verdict.block_reasons:
+            append_log(log_path, f"[BLOCK] {reason}")
+        for reason in verdict.warn_reasons:
+            append_log(log_path, f"[WARN] {reason}")
+        append_log(log_path, f"[verdict] {verdict.verdict.upper()}")
+
+        if verdict.verdict == "block":
+            result = StepRunResult(
+                status="failed",
+                exit_code=1,
+                summary_message=format_summary(verdict),
+            )
+        else:
+            result = StepRunResult(
+                status="success",
+                exit_code=0,
+                summary_message=format_summary(verdict),
+            )
+
+        self._record_step_result(
+            pipeline_run=pipeline_run,
+            run_dir=run_dir,
+            step=gate_step,
+            result=result,
+            repo_url=repo_url,
+            branch=branch,
+        )
+        return result
+
+    def _should_skip_step_for_source(self, step_definition: WorkflowStepDefinition) -> bool:
+        if self._source != "mirae":
+            return False
+        if step_definition.kind != "builtin":
+            return False
+        return step_definition.uses == "lightweight_security_scan"
+
+    def _check_required_env(self, repo_dir: Path, logs_dir: Path) -> StepRunResult | None:
+        missing, source_files = find_missing_env_keys(repo_dir)
+        if not source_files:
+            return None
+        log_file = logs_dir / "env_check.log"
+        rel_sources = [str(p.relative_to(repo_dir)) for p in source_files]
+        append_log(log_file, f"$ env_check (sources: {', '.join(rel_sources)})")
+        if not missing:
+            append_log(log_file, "[env_check] all required env keys provided")
+            append_log(log_file, "[exit_code] 0")
+            return StepRunResult(
+                status="success",
+                exit_code=0,
+                summary_message=f"Required env keys satisfied (from {', '.join(rel_sources)})",
+            )
+        append_log(log_file, f"[env_check] MISSING env keys: {', '.join(missing)}")
+        append_log(log_file, "[env_check] Provide these via the backend env input prompt and re-run.")
+        append_log(log_file, "[exit_code] 1")
+        return StepRunResult(
+            status="failed",
+            exit_code=1,
+            summary_message=(
+                f"Missing required env keys: {', '.join(missing)} "
+                f"(declared in {', '.join(rel_sources)})"
+            ),
+        )
+
     @staticmethod
     def _write_pipeline_result(run_dir: Path, pipeline_run: PipelineRun) -> None:
         save_json(run_dir / "pipeline_result.json", pipeline_run.to_dict())
 
-    @staticmethod
     def _write_security_results(
+        self,
         run_dir: Path,
         summaries: list[SecuritySummary],
         findings: list[SecurityFinding],
     ) -> None:
         save_json(run_dir / "security_summary.json", [item.to_dict() for item in summaries])
         save_json(run_dir / "security_findings.json", [item.to_dict() for item in findings])
+        if self._security_verdict is not None:
+            save_json(run_dir / "security_verdict.json", self._security_verdict.to_dict())
 
 
 def _safe_report_file_name(raw_value: object, default_name: str) -> str:

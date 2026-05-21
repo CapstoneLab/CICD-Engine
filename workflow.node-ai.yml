@@ -1,0 +1,28 @@
+name: node-security-with-ai
+runtime:
+  type: node
+steps:
+  - name: install
+    uses: install
+    continue_on_failure: true
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    uses: test
+    continue_on_failure: true
+
+  - name: deep-security
+    uses: deep_security_scan
+    continue_on_failure: true
+    args:
+      report_file: semgrep_report.json
+      ai_recommendation: true
+
+  - name: build
+    uses: build
+    continue_on_failure: true

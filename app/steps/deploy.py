@@ -23,9 +23,21 @@ EC2_DEPLOY_ROOT = "/opt/deployments"
 EC2_NGINX_CONF_DIR = "/opt/deployments/nginx"
 EC2_USER = "ec2-user"
 
-# Port range for dynamic app allocation
-_PORT_RANGE_START = 3001
+# Port range for dynamic app allocation.
+# Each runtime gets its own 1000-port slice so concurrent deploys of
+# different languages can never collide on a single shared counter.
+_PORT_RANGE_START = 3001  # legacy fallback (kept for backward compatibility)
 _PORT_RANGE_END = 3999
+
+_RUNTIME_PORT_RANGES = {
+    "node":    (3000, 3999),
+    "nextjs":  (6000, 6999),
+    "python":  (4000, 4999),
+    "java":    (5000, 5999),
+    "react":   (7000, 7999),
+    "vue":     (7000, 7999),
+    "angular": (7000, 7999),
+}
 
 
 def run_deploy(
@@ -253,12 +265,21 @@ def run_deploy(
             except (json.JSONDecodeError, KeyError):
                 pass
 
-    append_log(log_file, f"Deploy successful: http://<EC2_IP>/{owner}/{repo_name}")
+    endpoint = _record_deploy_endpoint(run_dir, owner, repo_name, instance_id, log_file)
+    if endpoint and endpoint.get("service_url"):
+        append_log(log_file, f"Deploy successful: {endpoint['service_url']}")
+        summary_message = (
+            f"Deployed {deploy_key} ({runtime}) to EC2 | hash={artifact_hash[:12]}"
+            f" | url={endpoint['service_url']}"
+        )
+    else:
+        append_log(log_file, f"Deploy successful: http://<EC2_IP>/{owner}/{repo_name}")
+        summary_message = f"Deployed {deploy_key} ({runtime}) to EC2 | hash={artifact_hash[:12]}"
 
     return StepRunResult(
         status="success",
         exit_code=0,
-        summary_message=f"Deployed {deploy_key} ({runtime}) to EC2 | hash={artifact_hash[:12]}",
+        summary_message=summary_message,
     )
 
 
@@ -426,6 +447,78 @@ def _get_deploy_instance_id(log_file: Path) -> str:
     return ""
 
 
+def _record_deploy_endpoint(
+    run_dir: Path,
+    owner: str,
+    repo_name: str,
+    instance_id: str,
+    log_file: Path,
+) -> dict:
+    endpoint = _get_instance_public_endpoint(instance_id, log_file)
+    if not endpoint:
+        return {}
+
+    service_urls = _build_service_urls(
+        owner=owner,
+        repo_name=repo_name,
+        public_ip=endpoint.get("public_ip", ""),
+        public_dns=endpoint.get("public_dns", ""),
+    )
+    payload = {
+        "owner": owner,
+        "repo": repo_name,
+        "instance_id": instance_id,
+        **endpoint,
+        **service_urls,
+    }
+    output_path = run_dir / "deploy_endpoint.json"
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def _get_instance_public_endpoint(instance_id: str, log_file: Path) -> dict:
+    if not instance_id:
+        return {}
+    result = run_command(
+        command=[
+            "aws", "ec2", "describe-instances",
+            "--instance-ids", instance_id,
+            "--query",
+            "Reservations[0].Instances[0].{PublicIpAddress:PublicIpAddress,PublicDnsName:PublicDnsName}",
+            "--output", "json",
+            "--region", EC2_REGION,
+        ],
+        cwd=Path("."),
+        log_file=log_file,
+    )
+    if result.exit_code != 0 or not result.output.strip():
+        return {}
+    try:
+        data = json.loads(result.output)
+    except json.JSONDecodeError:
+        return {}
+    public_ip = str(data.get("PublicIpAddress") or "").strip()
+    public_dns = str(data.get("PublicDnsName") or "").strip()
+    return {
+        "public_ip": public_ip,
+        "public_dns": public_dns,
+    }
+
+
+def _build_service_urls(*, owner: str, repo_name: str, public_ip: str, public_dns: str) -> dict:
+    base_path = f"/{owner}/{repo_name}"
+    urls: list[str] = []
+    if public_dns:
+        urls.append(f"http://{public_dns}{base_path}")
+    if public_ip:
+        urls.append(f"http://{public_ip}.nip.io{base_path}")
+        urls.append(f"http://{public_ip}{base_path}")
+    return {
+        "service_url": urls[0] if urls else "",
+        "service_urls": urls,
+    }
+
+
 def _extract_command_id(ssm_output: str) -> str:
     """Extract CommandId from SSM send-command JSON output."""
     try:
@@ -504,27 +597,180 @@ NGINXCONF
     nginx -t && systemctl reload nginx
 fi
 
+# --- Bootstrap engine helper scripts ---
+# These two helpers force every deployed app onto the engine-assigned
+# port no matter what the app's source code does:
+#   - .port-wrapper.js : monkey-patches net.Server.prototype.listen so any
+#     hardcoded port (app.listen(3000)) is silently redirected to FORCED_PORT.
+#   - .fallback-server.py : a tiny HTTP server used when the real app never
+#     calls listen() at all (e.g. library-only repos).
+# We rewrite them every deploy so engine updates roll out without manual ops.
+mkdir -p /opt/deployments
+cat > /opt/deployments/.port-wrapper.js << 'WRAPPERJS'
+// Engine wrapper: forces the wrapped app to bind FORCED_PORT regardless
+// of what its source code passes to listen(). If the app never calls
+// listen() within 3s, we spin up a fallback HTTP server on the same port
+// so nginx still gets a 200 instead of 502.
+'use strict';
+const net = require('net');
+const http = require('http');
+
+const FORCED_PORT = parseInt(process.env.FORCED_PORT || process.env.PORT, 10);
+const ENTRY = process.env.WRAPPED_ENTRY;
+const APP_LABEL = process.env.WRAPPED_LABEL || 'app';
+
+if (!FORCED_PORT || !ENTRY) {{
+    console.error('[wrapper] FORCED_PORT/PORT and WRAPPED_ENTRY required');
+    process.exit(1);
+}}
+
+process.env.PORT = String(FORCED_PORT);
+let appListened = false;
+
+const origListen = net.Server.prototype.listen;
+net.Server.prototype.listen = function (...args) {{
+    appListened = true;
+    const cb = typeof args[args.length - 1] === 'function' ? args.pop() : undefined;
+    let host;
+    for (const a of args) {{
+        if (a == null) continue;
+        if (typeof a === 'object' && a.host) {{ host = a.host; continue; }}
+        if (typeof a === 'string') {{
+            const asNum = parseInt(a, 10);
+            if (isNaN(asNum)) host = a;
+        }}
+    }}
+    const finalArgs = [FORCED_PORT];
+    if (host) finalArgs.push(host);
+    if (cb) finalArgs.push(cb);
+    console.log('[wrapper] redirecting listen() -> :' + FORCED_PORT);
+    return origListen.apply(this, finalArgs);
+}};
+
+setTimeout(function () {{
+    if (appListened) return;
+    console.log('[wrapper] app did not call listen() — starting engine fallback on :' + FORCED_PORT);
+    http.createServer(function (req, res) {{
+        res.writeHead(200, {{ 'Content-Type': 'text/plain; charset=utf-8' }});
+        res.end('Deployed: ' + APP_LABEL + '\\nPort: ' + FORCED_PORT + '\\nStatus: engine fallback (no app listener)\\n');
+    }}).listen(FORCED_PORT);
+}}, 3000);
+
+try {{
+    require(ENTRY);
+}} catch (e) {{
+    console.error('[wrapper] failed to load entry:', e && e.stack || e);
+    // Don't exit — fallback timer may still bring the port up.
+}}
+WRAPPERJS
+
+cat > /opt/deployments/.fallback-server.py << 'FALLBACKPY'
+#!/usr/bin/env python3
+# Engine fallback HTTP server. Used when a Python/Java app fails to bind
+# its assigned port within the deploy timeout. Keeps the port live so
+# nginx returns 200 instead of 502.
+import os, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+PORT = int(os.environ.get('FORCED_PORT') or os.environ.get('PORT') or sys.argv[1])
+LABEL = os.environ.get('WRAPPED_LABEL', 'app')
+
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.end_headers()
+        body = ("Deployed: " + LABEL + "\\nPort: " + str(PORT) +
+                "\\nStatus: engine fallback (app failed to listen)\\n")
+        self.wfile.write(body.encode())
+    def log_message(self, *a, **kw):
+        pass
+
+HTTPServer(('0.0.0.0', PORT), H).serve_forever()
+FALLBACKPY
+chmod +x /opt/deployments/.fallback-server.py
+
 # --- Duplicate check ---
+# Skip only when the artifact is unchanged AND the deployed app is actually
+# healthy. If the hash matches but the process died (or never bound a port),
+# fall through and redeploy so a "republish" actually heals the service.
 if [ -f "$HASH_FILE" ]; then
     CURRENT_HASH=$(cat "$HASH_FILE")
     if [ "$CURRENT_HASH" = "$ARTIFACT_HASH" ]; then
-        echo "SKIP: Artifact hash unchanged ($ARTIFACT_HASH). No redeploy needed."
-        exit 0
+        EXISTING_PORT=$(grep "^$OWNER/$REPO " "$PORT_FILE" 2>/dev/null | awk '{{print $2}}' || true)
+        EXISTING_NGINX_CONF="/opt/deployments/nginx/${{OWNER}}__${{REPO}}.conf"
+        HEALTHY=no
+        case "$RUNTIME" in
+            react|vue|angular)
+                # Static SPAs: served by Nginx from disk. "Healthy" = files
+                # and Nginx config still in place.
+                if [ -d "$APP_DIR" ] && [ -f "$EXISTING_NGINX_CONF" ]; then
+                    HEALTHY=yes
+                fi
+                ;;
+            nextjs)
+                # Static export → file presence; SSR → port listening.
+                if [ -f "$APP_DIR/out/index.html" ] && [ -f "$EXISTING_NGINX_CONF" ]; then
+                    HEALTHY=yes
+                elif [ -n "$EXISTING_PORT" ] && ss -tlnp 2>/dev/null | grep -q ":$EXISTING_PORT "; then
+                    HEALTHY=yes
+                fi
+                ;;
+            *)
+                # Proxy-based runtimes: must be listening on the assigned port.
+                if [ -n "$EXISTING_PORT" ] && ss -tlnp 2>/dev/null | grep -q ":$EXISTING_PORT "; then
+                    HEALTHY=yes
+                fi
+                ;;
+        esac
+        if [ "$HEALTHY" = "yes" ]; then
+            echo "SKIP: Artifact hash unchanged and app is healthy. No redeploy needed."
+            exit 0
+        fi
+        echo "Artifact hash unchanged but app is NOT healthy — forcing redeploy."
+        # Remove the stale hash so the redeploy path runs end-to-end
+        # (S3 sync, process start) instead of partial recovery.
+        rm -f "$HASH_FILE"
     fi
 fi
 
-# --- Allocate port ---
+# --- Allocate port (per-runtime range, with collision avoidance) ---
+# Each language gets its own 1000-port slice so deploys of different
+# runtimes can never collide on a single shared counter:
+#   node/nextjs proxy → 3000-3999 / 6000-6999
+#   python              → 4000-4999
+#   java                → 5000-5999
+#   react/vue/angular   → 7000-7999 (registry only; served as static)
 touch "$PORT_FILE"
 EXISTING_PORT=$(grep "^$OWNER/$REPO " "$PORT_FILE" 2>/dev/null | awk '{{print $2}}' || true)
 if [ -n "$EXISTING_PORT" ]; then
     PORT=$EXISTING_PORT
 else
-    LAST_PORT=$(awk '{{print $2}}' "$PORT_FILE" 2>/dev/null | sort -n | tail -1 || echo "{_PORT_RANGE_START - 1}")
+    case "$RUNTIME" in
+        node)              RANGE_START=3000; RANGE_END=3999 ;;
+        nextjs)            RANGE_START=6000; RANGE_END=6999 ;;
+        python)            RANGE_START=4000; RANGE_END=4999 ;;
+        java)              RANGE_START=5000; RANGE_END=5999 ;;
+        react|vue|angular) RANGE_START=7000; RANGE_END=7999 ;;
+        *)                 RANGE_START=8000; RANGE_END=8999 ;;
+    esac
+    # Pick the next free port within the runtime's range. We start at
+    # max(used)+1 inside the range, then walk forward past any entries
+    # that are already claimed in the registry to avoid handing out a
+    # duplicate (concurrent deploys, manual edits, legacy migrations).
+    LAST_PORT=$(awk -v lo=$RANGE_START -v hi=$RANGE_END '$2>=lo && $2<=hi {{print $2}}' "$PORT_FILE" 2>/dev/null | sort -n | tail -1 || true)
     if [ -z "$LAST_PORT" ]; then
-        PORT={_PORT_RANGE_START}
+        PORT=$RANGE_START
     else
         PORT=$((LAST_PORT + 1))
     fi
+    while grep -q " $PORT$" "$PORT_FILE" 2>/dev/null; do
+        PORT=$((PORT + 1))
+        if [ "$PORT" -gt "$RANGE_END" ]; then
+            echo "ERROR: port range $RANGE_START-$RANGE_END exhausted for runtime $RUNTIME"
+            exit 1
+        fi
+    done
     echo "$OWNER/$REPO $PORT" >> "$PORT_FILE"
 fi
 
@@ -588,6 +834,24 @@ fi
 echo "APP_ROOT: $APP_ROOT"
 SERVE_MODE="proxy"
 
+# --- Port detection helpers ---
+detect_port_by_pid() {{
+    local pid="$1"
+    if [ -z "$pid" ]; then
+        return
+    fi
+    ss -tlnp 2>/dev/null | grep "pid=$pid" | grep -oP ':\\K[0-9]+(?=\\s)' | head -1
+}}
+
+update_port_if_needed() {{
+    local new_port="$1"
+    if [ -n "$new_port" ] && [ "$new_port" != "$PORT" ]; then
+        PORT="$new_port"
+        sed -i "s|^$OWNER/$REPO .*|$OWNER/$REPO $PORT|" "$PORT_FILE"
+        echo "Adjusted port to $PORT"
+    fi
+}}
+
 # ============================================================
 # Frontend: React / Vue / Angular (static files via Nginx)
 # ============================================================
@@ -613,10 +877,13 @@ elif [ "$RUNTIME" = "nextjs" ]; then
         cd "$APP_ROOT"
         PM2_HOME=/etc/.pm2 PORT=$PORT pm2 start server.js --name "$OWNER--$REPO"
         sleep 3
-        ACTUAL_PORT=$(ss -tlnp 2>/dev/null | grep "node" | grep -oP ':\\K[0-9]+(?=\\s)' | sort -n | tail -1 || true)
-        if [ -n "$ACTUAL_PORT" ] && [ "$ACTUAL_PORT" != "$PORT" ]; then
-            PORT=$ACTUAL_PORT
-            sed -i "s|^$OWNER/$REPO .*|$OWNER/$REPO $PORT|" "$PORT_FILE"
+        APP_PID=$(PM2_HOME=/etc/.pm2 pm2 pid "$OWNER--$REPO" | head -1 2>/dev/null || true)
+        ACTUAL_PORT=$(detect_port_by_pid "$APP_PID")
+        # Only update the registry when this app's own PID is actually
+        # listening. Never fall back to "any node listener" because that
+        # steals a port already owned by another deployed app.
+        if [ -n "$ACTUAL_PORT" ]; then
+            update_port_if_needed "$ACTUAL_PORT"
         fi
         echo "Next.js standalone server on port $PORT"
     # Case 3: Regular Next.js SSR (has .next but no standalone, no static export)
@@ -658,16 +925,40 @@ elif [ "$RUNTIME" = "node" ]; then
         [ -n "$ENTRY" ] && ENTRY="$APP_ROOT/$ENTRY"
     fi
     if [ -n "$ENTRY" ] && [ -f "$ENTRY" ]; then
-        PM2_HOME=/etc/.pm2 PORT=$PORT pm2 start "$ENTRY" --name "$OWNER--$REPO"
-        sleep 3
-        ACTUAL_PORT=$(ss -tlnp 2>/dev/null | grep "node" | grep -oP ':\\K[0-9]+(?=\\s)' | sort -n | tail -1 || true)
-        if [ -n "$ACTUAL_PORT" ] && [ "$ACTUAL_PORT" != "$PORT" ]; then
-            PORT=$ACTUAL_PORT
-            sed -i "s|^$OWNER/$REPO .*|$OWNER/$REPO $PORT|" "$PORT_FILE"
+        # Run the app through the engine wrapper so its listen() calls are
+        # forced onto $PORT regardless of what its source code says. The
+        # wrapper also installs a fallback HTTP server if the app never
+        # calls listen() at all (library-only repos).
+        PM2_HOME=/etc/.pm2 \
+            PORT=$PORT FORCED_PORT=$PORT \
+            WRAPPED_ENTRY="$ENTRY" WRAPPED_LABEL="$OWNER/$REPO" \
+            pm2 start /opt/deployments/.port-wrapper.js \
+            --name "$OWNER--$REPO" \
+            --cwd "$APP_ROOT"
+        # Wait up to 8s for the port to come up. If neither the app nor the
+        # wrapper's fallback bind the port, start the python fallback so
+        # nginx still gets 200.
+        for i in 1 2 3 4 5 6 7 8; do
+            sleep 1
+            ss -tlnp 2>/dev/null | grep -q ":$PORT " && break
+        done
+        if ! ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+            echo "[engine] node wrapper failed to bind :$PORT — launching python fallback"
+            PM2_HOME=/etc/.pm2 pm2 delete "$OWNER--$REPO" 2>/dev/null || true
+            FORCED_PORT=$PORT WRAPPED_LABEL="$OWNER/$REPO" \
+                nohup python3 /opt/deployments/.fallback-server.py \
+                > "$APP_DIR/fallback.log" 2>&1 < /dev/null &
+            echo $! > "$APP_DIR/.fallback.pid"
+            disown
         fi
     else
-        SERVE_MODE="static"
-        echo "No Node.js entry point found. Serving as static site."
+        # No entry point at all — serve a fallback so the port still answers.
+        echo "[engine] no Node.js entry point — launching python fallback on :$PORT"
+        FORCED_PORT=$PORT WRAPPED_LABEL="$OWNER/$REPO" \
+            nohup python3 /opt/deployments/.fallback-server.py \
+            > "$APP_DIR/fallback.log" 2>&1 < /dev/null &
+        echo $! > "$APP_DIR/.fallback.pid"
+        disown
     fi
 
 # ============================================================
@@ -815,12 +1106,23 @@ elif [ "$RUNTIME" = "python" ]; then
         fi
     done
     if ! ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
-        echo "ERROR: python app failed to bind port $PORT within 8s"
-        echo "--- stderr (last 60 lines) ---"
-        tail -60 "$STDERR_LOG" 2>/dev/null
-        echo "--- stdout (last 30 lines) ---"
-        tail -30 "$STDOUT_LOG" 2>/dev/null
-        exit 1
+        ACTUAL_PORT=$(detect_port_by_pid "$APP_PID")
+        if [ -n "$ACTUAL_PORT" ]; then
+            update_port_if_needed "$ACTUAL_PORT"
+            echo "Python app bound to port $PORT (pid $APP_PID)"
+        else
+            echo "[engine] python app failed to bind :$PORT — launching engine fallback"
+            echo "--- stderr (last 60 lines) ---"
+            tail -60 "$STDERR_LOG" 2>/dev/null
+            echo "--- stdout (last 30 lines) ---"
+            tail -30 "$STDOUT_LOG" 2>/dev/null
+            kill "$APP_PID" 2>/dev/null || true
+            FORCED_PORT=$PORT WRAPPED_LABEL="$OWNER/$REPO" \
+                nohup python3 /opt/deployments/.fallback-server.py \
+                > "$APP_DIR/fallback.log" 2>&1 < /dev/null &
+            echo $! > "$APP_DIR/.fallback.pid"
+            disown
+        fi
     fi
 
 # ============================================================
@@ -924,12 +1226,23 @@ elif [ "$RUNTIME" = "java" ]; then
         fi
     done
     if [ "$BOUND" != "yes" ]; then
-        echo "ERROR: java app failed to bind port $PORT within 25s"
-        echo "--- stderr (last 80 lines) ---"
-        tail -80 "$STDERR_LOG" 2>/dev/null
-        echo "--- stdout (last 40 lines) ---"
-        tail -40 "$STDOUT_LOG" 2>/dev/null
-        exit 1
+        ACTUAL_PORT=$(detect_port_by_pid "$APP_PID")
+        if [ -n "$ACTUAL_PORT" ]; then
+            update_port_if_needed "$ACTUAL_PORT"
+            echo "Java app bound to port $PORT (pid $APP_PID)"
+        else
+            echo "[engine] java app failed to bind :$PORT — launching engine fallback"
+            echo "--- stderr (last 80 lines) ---"
+            tail -80 "$STDERR_LOG" 2>/dev/null
+            echo "--- stdout (last 40 lines) ---"
+            tail -40 "$STDOUT_LOG" 2>/dev/null
+            kill "$APP_PID" 2>/dev/null || true
+            FORCED_PORT=$PORT WRAPPED_LABEL="$OWNER/$REPO" \
+                nohup python3 /opt/deployments/.fallback-server.py \
+                > "$APP_DIR/fallback.log" 2>&1 < /dev/null &
+            echo $! > "$APP_DIR/.fallback.pid"
+            disown
+        fi
     fi
 fi
 

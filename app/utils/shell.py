@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.utils.logger import append_log
+from app.utils.secrets import collect_sensitive_values, mask_line
 
 
 @dataclass
@@ -27,11 +28,18 @@ def run_command(
     log_file: Path,
     env: dict[str, str] | None = None,
 ) -> CommandResult:
-    append_log(log_file, f"$ {' '.join(command)}")
-
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
+
+    sensitive_values = collect_sensitive_values()
+    if env:
+        for key, value in env.items():
+            if value and len(value) >= 4 and any(k in key.upper() for k in ("KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "AUTH")):
+                sensitive_values.append(value)
+        sensitive_values = sorted(set(sensitive_values), key=len, reverse=True)
+
+    append_log(log_file, mask_line(f"$ {' '.join(command)}", sensitive_values))
 
     try:
         process = subprocess.Popen(
@@ -44,9 +52,9 @@ def run_command(
         )
     except FileNotFoundError as exc:
         message = f"Command not found: {command[0]} ({exc})"
-        append_log(log_file, message)
+        append_log(log_file, mask_line(message, sensitive_values))
         append_log(log_file, "[exit_code] 127")
-        return CommandResult(exit_code=127, output=message)
+        return CommandResult(exit_code=127, output=mask_line(message, sensitive_values))
 
     chunks: list[str] = []
 
@@ -59,8 +67,9 @@ def run_command(
             continue
 
         decoded = _decode_chunk(raw).rstrip("\r\n")
-        chunks.append(decoded)
-        append_log(log_file, decoded)
+        masked = mask_line(decoded, sensitive_values)
+        chunks.append(masked)
+        append_log(log_file, masked)
 
     exit_code = process.wait()
     append_log(log_file, f"[exit_code] {exit_code}")
