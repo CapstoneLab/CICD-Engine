@@ -1,0 +1,12 @@
+{
+  "name": "cicd-engine-codeql-baseline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Actions + CodeQL baseline used for CI/CD security comparison experiments.",
+  "scripts": {
+    "start": "node src/vulnerable_express_app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

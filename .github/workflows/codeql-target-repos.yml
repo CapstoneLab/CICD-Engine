@@ -1,0 +1,126 @@
+name: CodeQL Target Repository Experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      query_suite:
+        description: CodeQL query suite
+        required: true
+        default: security-extended
+        type: choice
+        options:
+          - security-extended
+          - security-and-quality
+      upload_code_scanning:
+        description: Upload alerts to GitHub code scanning
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: ${{ matrix.target_id }} / ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target_id: juice
+            repository: printwd/juice-shop
+            ref: master
+            language: javascript-typescript
+            build_mode: none
+          - target_id: DjanGoat
+            repository: printwd/DjanGoat
+            ref: master
+            language: python
+            build_mode: none
+          - target_id: WebGoat
+            repository: printwd/WebGoat
+            ref: main
+            language: java-kotlin
+            build_mode: autobuild
+
+    steps:
+      - name: Checkout experiment harness
+        uses: actions/checkout@v4
+        with:
+          path: harness
+
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: target
+
+      - name: Record start time
+        shell: bash
+        run: |
+          echo "CODEQL_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+          {
+            echo "## CodeQL target experiment"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Target | \`${{ matrix.target_id }}\` |"
+            echo "| Repository | \`${{ matrix.repository }}\` |"
+            echo "| Ref | \`${{ matrix.ref }}\` |"
+            echo "| Language | \`${{ matrix.language }}\` |"
+            echo "| Build mode | \`${{ matrix.build_mode }}\` |"
+            echo "| Query suite | \`${{ inputs.query_suite }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build_mode }}
+          source-root: target
+          queries: ${{ inputs.query_suite }}
+
+      - name: Autobuild
+        if: matrix.build_mode == 'autobuild'
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /target:${{ matrix.target_id }}/language:${{ matrix.language }}
+          output: codeql-results/${{ matrix.target_id }}/${{ matrix.language }}
+          upload: ${{ inputs.upload_code_scanning }}
+
+      - name: Count CodeQL findings
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p codeql-counts/${{ matrix.target_id }}
+          elapsed="$(($(date +%s) - CODEQL_STARTED_AT))"
+          python3 harness/CodeQL/scripts/count_codeql_sarif.py \
+            --sarif-dir codeql-results/${{ matrix.target_id }}/${{ matrix.language }} \
+            --target-id "${{ matrix.target_id }}" \
+            --repository "${{ matrix.repository }}" \
+            --ref "${{ matrix.ref }}" \
+            --language "${{ matrix.language }}" \
+            --elapsed-seconds "$elapsed" \
+            --json-out codeql-counts/${{ matrix.target_id }}/codeql-count-summary.json \
+            --md-out codeql-counts/${{ matrix.target_id }}/codeql-count-summary.md
+          cat codeql-counts/${{ matrix.target_id }}/codeql-count-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CodeQL experiment artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ matrix.target_id }}-${{ matrix.language }}
+          path: |
+            codeql-results/${{ matrix.target_id }}/${{ matrix.language }}
+            codeql-counts/${{ matrix.target_id }}
+          if-no-files-found: warn
+          retention-days: 30

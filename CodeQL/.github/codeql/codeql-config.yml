@@ -1,0 +1,10 @@
+name: cicd-engine-codeql-baseline
+
+paths:
+  - src
+
+paths-ignore:
+  - "**/*.md"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/venv/**"

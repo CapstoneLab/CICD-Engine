@@ -1,0 +1,115 @@
+name: GitHub Actions + CodeQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      query_suite:
+        description: CodeQL query suite to run
+        required: true
+        default: security-extended
+        type: choice
+        options:
+          - security-extended
+          - security-and-quality
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Record analysis start
+        shell: bash
+        run: |
+          echo "CODEQL_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+          {
+            echo "## CodeQL analysis"
+            echo ""
+            echo "- Language: \`${{ matrix.language }}\`"
+            echo "- Query suite: \`${{ inputs.query_suite || 'security-extended' }}\`"
+            echo "- Started at: \`$(date -u '+%Y-%m-%dT%H:%M:%SZ')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
+          queries: ${{ inputs.query_suite || 'security-extended' }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+          output: codeql-results/${{ matrix.language }}
+          upload: true
+
+      - name: Summarize SARIF result
+        if: always()
+        shell: bash
+        run: |
+          elapsed="$(($(date +%s) - CODEQL_STARTED_AT))"
+          sarif_count="$(find codeql-results -name '*.sarif' -type f 2>/dev/null | wc -l | tr -d ' ')"
+          finding_count="0"
+
+          if [ "$sarif_count" != "0" ]; then
+            finding_count="$(
+              python3 - <<'PY'
+import json
+from pathlib import Path
+
+total = 0
+for path in Path("codeql-results").rglob("*.sarif"):
+    with path.open("r", encoding="utf-8") as fp:
+        sarif = json.load(fp)
+    for run in sarif.get("runs", []):
+        total += len(run.get("results", []))
+print(total)
+PY
+            )"
+          fi
+
+          {
+            echo ""
+            echo "### Result"
+            echo ""
+            echo "- Elapsed seconds: \`${elapsed}\`"
+            echo "- SARIF files: \`${sarif_count}\`"
+            echo "- Findings in SARIF: \`${finding_count}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: codeql-results/${{ matrix.language }}
+          if-no-files-found: warn
+          retention-days: 14
