@@ -7,31 +7,13 @@ from app.models import SecurityFinding, SecuritySummary
 
 
 def parse_gitleaks_report(report_file: Path) -> tuple[SecuritySummary, list[SecurityFinding]]:
-    if not report_file.exists():
-        summary = SecuritySummary(
-            scanner_name="gitleaks",
-            scan_type="lightweight",
-            critical_count=0,
-            high_count=0,
-            medium_count=0,
-            low_count=0,
-            max_detected_severity="none",
-        )
-        return summary, []
-
-    try:
-        data = json.loads(report_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        summary = SecuritySummary(
-            scanner_name="gitleaks",
-            scan_type="lightweight",
-            critical_count=0,
-            high_count=0,
-            medium_count=0,
-            low_count=0,
-            max_detected_severity="none",
-        )
-        return summary, []
+    # File/JSON errors propagate to the scan step and halt the pipeline.
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError("Gitleaks report must be a JSON array")
+    if any(not isinstance(item, dict) or not item.get("RuleID") or not item.get("File")
+           or not isinstance(item.get("StartLine", item.get("Line")), int) for item in data):
+        raise ValueError("Gitleaks report contains malformed findings")
 
     findings: list[SecurityFinding] = []
     for item in data if isinstance(data, list) else []:

@@ -29,18 +29,23 @@
 아래 정책은 기본 워크플로 기준이다. 저장소별 YAML에서 조정 가능하다.
 
 - lightweight_security_scan
-  - gitleaks 탐지가 있어도 non-blocking 정책으로 진행
-  - 단, gitleaks 실행 자체 실패는 step 실패
+  - gitleaks 탐지 결과를 수집하고 최종 security_gate에서 정책 판정
+  - Hardcoded Secret(CWE-798)으로 분류된 결과는 Critical로 병합·배포 차단
+  - gitleaks 실행 자체 실패는 step 실패
+
 - deep_security_scan
-  - semgrep 결과 중 Critical CVSS 기준으로만 차단
-  - 현재 임계치: CVSS 9.0 이상
+  - semgrep 결과를 보안 카탈로그의 CWE 및 등급으로 정규화
+  - Critical은 차단하고 High는 승인 전까지 차단
+  - production/staging의 카탈로그 외 결과는 MANUAL_REVIEW로 처리
+
 - build
   - build 우선
   - 없으면 build:frontend, build:server 순서로 fallback 실행
   - 성공 시 산출물을 runs/<run_id>/artifacts/ 아래로 저장
   - 명령은 성공했지만 산출물이 없으면 build step failed 처리
 
-즉, gitleaks에서 leaks가 발견되어도 최종 성공이 가능하다.
+Gitleaks 단계 자체는 결과 수집을 위해 성공으로 종료될 수 있지만,
+최종 security_gate에서 Critical Secret으로 분류되면 파이프라인은 실패한다.
 
 - test
   - 테스트 파일이 없으면 test step skipped
@@ -174,7 +179,7 @@ cd <프로젝트_루트>
 
 콜백 포함 실행:
 
-.\.venv\Scripts\python.exe main.py --job-id <uuid> --repo https://github.com/juice-shop/juice-shop --branch main --callback-url https://windows-host/get-results --callback-token <shared-token>
+.\.venv\Scripts\python.exe main.py --job-id <uuid> --repo https://github.com/juice-shop/juice-shop --branch main --callback-url http://192.168.0.4:8000/get-results --callback-token <shared-token>
 
 참고:
 
@@ -296,3 +301,14 @@ runs/run-*/pipeline_result.json
 - runs, workspace 디스크 용량 주기 점검
 - 동일 기준 repo로 주 1회 스모크 실행
 - 도구 버전 변경 시 반드시 재검증 1회 수행
+
+### Docker Compose 배포 환경 점검
+
+엔진 이미지에는 Docker CLI와 Compose 플러그인이 모두 필요하다.
+`docker compose version`이 실패하면 배포 설정 변경 전에 명확한 오류로 중단한다.
+엔진이 컨테이너에서 실행되는 경우 앱 기동 점검은 같은 Docker 네트워크의
+앱 컨테이너 DNS 이름과 내부 포트를 사용한다. 엔진의 localhost는 호스트가 아니다.
+호스트에서 직접 실행할 때만 localhost와 게시된 호스트 포트를 사용한다.
+공용 프록시의 상태 디렉터리가 바뀔 때는 기존 컨테이너의 모든 route 파일을
+먼저 복사해 백엔드(`/api`, `/auth`, `/webhooks`, `/open/pipeline`)와 다른 앱의 경로를 보존한다.
+복사 실패 시 공유 프록시 설정 교체를 중단한다.

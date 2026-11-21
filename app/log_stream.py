@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 import time
+from uuid import uuid4
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -46,6 +48,7 @@ class CallbackLogStreamer:
         batch_size: int = 50,
         flush_interval_sec: float = 0.25,
         timeout_sec: int = 5,
+        heartbeat_interval_sec: float = 10,
     ) -> None:
         self.callback_url = callback_url.strip()
         self.callback_token = callback_token.strip()
@@ -55,6 +58,7 @@ class CallbackLogStreamer:
         self.batch_size = max(1, batch_size)
         self.flush_interval_sec = max(0.01, flush_interval_sec)
         self.timeout_sec = max(1, timeout_sec)
+        self.heartbeat_interval_sec = max(0.05, heartbeat_interval_sec)
         self._queue: queue.Queue[LogEvent | object] = queue.Queue()
         self._sequence = 0
         self._sequence_lock = threading.Lock()
@@ -104,8 +108,9 @@ class CallbackLogStreamer:
         batch: list[LogEvent] = []
         stopping = False
         deadline: float | None = None
+        heartbeat_due = time.monotonic() + self.heartbeat_interval_sec
         while not stopping:
-            timeout = None if deadline is None else max(0.0, deadline - time.monotonic())
+            timeout = max(0.0, min(deadline or heartbeat_due, heartbeat_due) - time.monotonic())
             try:
                 item = self._queue.get(timeout=timeout)
             except queue.Empty:
@@ -123,9 +128,31 @@ class CallbackLogStreamer:
                 or item is None
                 or len(batch) >= self.batch_size
             ):
+                # Coalesce an existing backlog without waiting for new logs.
+                # Normal idle flush stays 250ms; shutdown needs fewer round trips.
+                while not stopping and len(batch) < max(self.batch_size, 500):
+                    try:
+                        queued = self._queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if queued is self._STOP:
+                        stopping = True
+                    elif isinstance(queued, LogEvent):
+                        batch.append(queued)
                 self._deliver(batch)
                 batch = []
                 deadline = None
+            if not stopping and time.monotonic() >= heartbeat_due:
+                self._heartbeat()
+                heartbeat_due = time.monotonic() + self.heartbeat_interval_sec
+
+    def _heartbeat(self) -> None:
+        if not self.job_id:
+            return
+        post_callback_with_retry(callback_url=self.callback_url, callback_token=self.callback_token,
+            payload={"type": "heartbeat", "event_id": str(uuid4()), "job_id": self.job_id,
+                "repo_url": self.repo_url, "branch": self.branch},
+            retry_delays_sec=[], timeout_sec=self.timeout_sec)
 
     def _deliver(self, events: list[LogEvent]) -> None:
         payload = build_log_batch_payload(
@@ -162,7 +189,7 @@ def build_log_batch_payload(
 
     first = events[0]
     last = events[-1]
-    event_key = f"{job_id}:{first.run_id}:{first.sequence}:{last.sequence}"
+    event_key = f"{job_id}:{first.run_id}:{os.getenv('CICD_RESUME_ID','')}:{first.sequence}:{last.sequence}"
     event_id = sha256(event_key.encode("utf-8")).hexdigest()
     serialized_events = [
         {

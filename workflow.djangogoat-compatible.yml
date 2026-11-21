@@ -1,0 +1,75 @@
+name: djangogoat-compatible-workflow
+runtime:
+  type: python
+steps:
+  - name: patch-python314-requirements
+    run:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+
+        path = Path("requirements.txt")
+        original = path.read_text().splitlines()
+        replacements = {
+            "Django": "Django>=5.2,<6",
+            "django-bootstrap4": "django-bootstrap4>=25.0",
+            "pytz": "pytz>=2024.1",
+            "six": "six>=1.16.0",
+            "coverage": "coverage>=7.0",
+            "wrapt": "wrapt>=1.17.0",
+            "lazy-object-proxy": "lazy-object-proxy>=1.10.0",
+        }
+        remove = {
+            "astroid",
+            "backports.functools-lru-cache",
+            "configparser",
+            "django-jenkins",
+            "enum34",
+            "isort",
+            "pep8",
+            "pycrypto",
+            "pylint",
+            "pylint-django",
+            "singledispatch",
+            "virtualenv",
+            "django-webtest",
+        }
+        rewritten = []
+        for line in original:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                rewritten.append(line)
+                continue
+            name = stripped.split("==", 1)[0].split(">=", 1)[0].split("<", 1)[0].strip()
+            if name in remove:
+                continue
+            if name in replacements:
+                rewritten.append(replacements[name])
+                continue
+            if stripped.startswith("-e git+https://github.com/rodrigoamaral/django-fullcalendar.git"):
+                continue
+            rewritten.append(line)
+
+        rewritten.append("pycryptodome>=3.20.0")
+        path.write_text("\n".join(rewritten) + "\n")
+
+  - name: install
+    uses: install
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+
+  - name: deploy
+    uses: deploy

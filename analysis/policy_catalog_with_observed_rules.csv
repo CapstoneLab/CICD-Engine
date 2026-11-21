@@ -1,0 +1,17 @@
+﻿policy_item,policy_key,cwe,policy_severity,per_finding_deduction,scanner_observed,top_observed_rule_ids_in_14_dt,severity_assignment_basis
+SQL Injection,sql-injection,CWE-89,critical,20.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 즉시 차단: 명령·코드·DB 실행 또는 자격증명 노출
+Command Injection,command-injection,CWE-78,critical,20.0,semgrep,semgrep:python.lang.security.audit.subprocess-shell-true.subprocess-shell-true (7); semgrep:yaml.github-actions.security.run-shell-injection.run-shell-injection (5); semgrep:javascript.lang.security.detect-child-process.detect-child-process (5); semgrep:javascript.lang.security.audit.spawn-shell-true.spawn-shell-true (4),정책상 즉시 차단: 명령·코드·DB 실행 또는 자격증명 노출
+Hardcoded Secret,hardcoded-secret,CWE-798,critical,20.0,gitleaks+semgrep,gitleaks:generic-api-key (24); gitleaks:private-key (7); gitleaks:gitlab-pat (6); semgrep:generic.secrets.security.detected-generic-api-key.detected-generic-api-key (3),정책상 즉시 차단: 명령·코드·DB 실행 또는 자격증명 노출
+Code Injection,code-injection,CWE-94,critical,20.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 즉시 차단: 명령·코드·DB 실행 또는 자격증명 노출
+Insecure Deserialization,insecure-deserialization,CWE-502,high,5.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 승인 필요: 보호 경계·전송·권한 검증 약화
+IDOR,idor,CWE-639,high,5.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 승인 필요: 보호 경계·전송·권한 검증 약화
+Improper JWT Verification,improper-jwt,CWE-347,high,5.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 승인 필요: 보호 경계·전송·권한 검증 약화
+Cleartext Transmission,cleartext-transmission,CWE-319,high,5.0,semgrep,semgrep:javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket (8),정책상 승인 필요: 보호 경계·전송·권한 검증 약화
+Path Traversal,path-traversal,CWE-22,medium,1.0,semgrep,semgrep:javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal (190); semgrep:javascript.express.security.audit.express-path-join-resolve-traversal.express-path-join-resolve-traversal (1),정책상 경고: 피해자 동작 또는 추가 조건이 필요한 입력 처리
+Cross-Site Scripting (XSS),xss,CWE-79,medium,1.0,semgrep,semgrep:typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml (2); semgrep:javascript.express.security.audit.xss.ejs.var-in-script-src.var-in-script-src (2); semgrep:javascript.express.security.audit.xss.direct-response-write.direct-response-write (2),정책상 경고: 피해자 동작 또는 추가 조건이 필요한 입력 처리
+Weak Cryptography,weak-crypto,CWE-327,medium,1.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 경고: 피해자 동작 또는 추가 조건이 필요한 입력 처리
+SSRF,ssrf,CWE-918,medium,1.0,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 경고: 피해자 동작 또는 추가 조건이 필요한 입력 처리
+Error Message Info Exposure,error-info-exposure,CWE-209,low,0.2,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 보완: 정보 노출·쿠키·비밀번호 정책 강화
+Missing HttpOnly Flag,missing-httponly,CWE-1004,low,0.2,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 보완: 정보 노출·쿠키·비밀번호 정책 강화
+Missing Secure Flag,missing-secure-flag,CWE-614,low,0.2,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 보완: 정보 노출·쿠키·비밀번호 정책 강화
+Weak Password Requirements,weak-password-policy,CWE-521,low,0.2,Semgrep 대상,본 DT 표본에서 탐지 없음,정책상 보완: 정보 노출·쿠키·비밀번호 정책 강화

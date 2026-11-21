@@ -1,0 +1,63 @@
+name: capstone-deployments
+services:
+  router:
+    image: nginx:1.27-alpine
+    container_name: capstone-deploy-router
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:19080:80
+    volumes:
+    - type: bind
+      source: /home/capstone/CICD-Engine/deployments/router/default.conf
+      target: /etc/nginx/conf.d/default.conf
+      read_only: true
+    - type: bind
+      source: /home/capstone/CICD-Engine/deployments/router/routes
+      target: /etc/nginx/routes
+      read_only: true
+    networks:
+    - internal
+  cicd-app-nekonyangyee-samplejavascript4-c01d5263:
+    image: cicd-managed/nekonyangyee-samplejavascript4:9ac71704f87a
+    container_name: cicd-app-nekonyangyee-samplejavascript4-c01d5263
+    restart: unless-stopped
+    environment:
+      PORT: '3000'
+      HOST: 0.0.0.0
+      HOSTNAME: 0.0.0.0
+    ports:
+    - 127.0.0.1:17397:3000
+    labels:
+      com.capstonelab.cicd.managed: 'true'
+      com.capstonelab.cicd.service-key: nekonyangyee/samplejavascript4
+      com.capstonelab.cicd.host-port: '17397'
+      com.capstonelab.cicd.owner: NekoNyangYee
+      com.capstonelab.cicd.repo: Samplejavascript4
+      com.capstonelab.cicd.runtime: node
+      com.capstonelab.cicd.artifact-hash: 9ac71704f87a0e2c0d90d72f4303532b239906807dba50152ea7c108ef6b24a3
+    networks:
+    - internal
+  cicd-app-nekonyangyee-quiz-web-b607663a:
+    image: cicd-managed/nekonyangyee-quiz-web:1e89385c7934
+    container_name: cicd-app-nekonyangyee-quiz-web-b607663a
+    restart: unless-stopped
+    environment:
+      PORT: '80'
+      HOST: 0.0.0.0
+      HOSTNAME: 0.0.0.0
+    ports:
+    - 127.0.0.1:18139:80
+    labels:
+      com.capstonelab.cicd.managed: 'true'
+      com.capstonelab.cicd.service-key: nekonyangyee/quiz-web
+      com.capstonelab.cicd.host-port: '18139'
+      com.capstonelab.cicd.owner: NekoNyangYee
+      com.capstonelab.cicd.repo: quiz-web
+      com.capstonelab.cicd.runtime: react
+      com.capstonelab.cicd.artifact-hash: 1e89385c793438d62b421e3ff313e3d753103f3937cf58fc71ba692e87aa9084
+    networks:
+    - internal
+networks:
+  internal:
+    external: true
+    name: capstone-internal

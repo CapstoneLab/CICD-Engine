@@ -75,3 +75,22 @@ def test_step_callback_retries_transient_failures(monkeypatch) -> None:
     assert ok is True
     assert len(attempts) == 3
     assert "3 attempt(s)" in detail
+
+
+def test_security_stage_types_match_frontend_contract():
+    assert callback._step_type("lightweight-security") == "security-light"
+    assert callback._step_type("deep-security") == "security-deep"
+    assert callback._step_type("security_gate") == "security-gate"
+
+
+def test_failed_step_reports_exit_code_and_last_log_in_both_callbacks():
+    run, step = _pipeline()
+    step.status = 'failed'
+    step.exit_code = 2
+    step.summary_message = ''
+    logs = ['starting', 'ModuleNotFoundError: missing dependency']
+    incremental = callback.build_step_callback_payload(job_id='job', repo_url=run.repo_url, branch=run.branch, pipeline_run=run, step=step, step_log=logs)
+    assert incremental['step']['error_message'] == 'exit code: 2\nModuleNotFoundError: missing dependency'
+    final = callback.build_callback_payload(job_id='job', repo_url=run.repo_url, branch=run.branch, pipeline_run=run, logs=[f'[clone.log] {line}' for line in logs] + ['[other.log] unrelated'])
+    assert 'ModuleNotFoundError' in final['steps'][0]['error_message']
+    assert 'unrelated' not in final['steps'][0]['error_message']

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "benchmark": "OWASP Benchmark v1.2",
+  "policy": "Rule semantics may be harmonized to a Benchmark category, but test IDs and expected labels must never be used in a mapping.",
+  "rule_overrides": {
+    "java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated": {
+      "from_cwes": [
+        326
+      ],
+      "to_cwe": 327,
+      "rationale": "The rule detects use of DES. Semgrep classifies the weakness as CWE-326, while OWASP Benchmark v1.2 classifies its broken/risky symmetric-crypto cases as CWE-327."
+    },
+    "java.lang.security.audit.crypto.desede-is-deprecated.desede-is-deprecated": {
+      "from_cwes": [
+        326
+      ],
+      "to_cwe": 327,
+      "rationale": "The rule detects use of 3DES/DESede. Semgrep classifies the weakness as CWE-326, while OWASP Benchmark v1.2 classifies its broken/risky symmetric-crypto cases as CWE-327."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+[Unit]
+Description=CICD Engine Poller (pulls pending jobs from backend and spawns main.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=capstone
+Group=capstone
+WorkingDirectory=/home/capstone/CICD-Engine
+Environment="PATH=/home/capstone/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="HOME=/home/capstone"
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+ExecStart=/home/capstone/CICD-Engine/.venv/bin/python -m app.poller
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/capstone/CICD-Engine/runs/poller.systemd.log
+StandardError=append:/home/capstone/CICD-Engine/runs/poller.systemd.log
+KillMode=mixed
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

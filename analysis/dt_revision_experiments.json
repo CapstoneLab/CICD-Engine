@@ -1,0 +1,1463 @@
+{
+  "scope": {
+    "repositories": 14,
+    "environment": "development",
+    "manual_adjustment": "Critical/High exact-location census: confirmed_pattern retained; Medium/Low retained automatically; exact duplicates removed"
+  },
+  "ablation": {
+    "semgrep_only_policy": {
+      "finding_count": 234,
+      "verdicts": {
+        "BLOCK": 5,
+        "BLOCK_PENDING_APPROVAL": 1,
+        "PASS": 6,
+        "WARN": 2
+      },
+      "per_repository": [
+        {
+          "repository_id": "DT1",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT2",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT3",
+          "finding_count": 8,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        },
+        {
+          "repository_id": "DT4",
+          "finding_count": 14,
+          "counts": {
+            "critical": 5,
+            "high": 0,
+            "medium": 9,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT5",
+          "finding_count": 134,
+          "counts": {
+            "critical": 14,
+            "high": 0,
+            "medium": 120,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT6",
+          "finding_count": 33,
+          "counts": {
+            "critical": 2,
+            "high": 0,
+            "medium": 31,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT7",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT8",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT9",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT10",
+          "finding_count": 13,
+          "counts": {
+            "critical": 5,
+            "high": 1,
+            "medium": 7,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT11",
+          "finding_count": 5,
+          "counts": {
+            "critical": 3,
+            "high": 0,
+            "medium": 2,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 38.0
+        },
+        {
+          "repository_id": "DT12",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT13",
+          "finding_count": 7,
+          "counts": {
+            "critical": 0,
+            "high": 7,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 81.0
+        },
+        {
+          "repository_id": "DT14",
+          "finding_count": 20,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 20,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        }
+      ]
+    },
+    "combined_all_rules": {
+      "finding_count": 482,
+      "verdicts": {
+        "BLOCK": 9,
+        "BLOCK_PENDING_APPROVAL": 2,
+        "PASS": 1,
+        "WARN": 2
+      },
+      "per_repository": [
+        {
+          "repository_id": "DT1",
+          "finding_count": 2,
+          "counts": {
+            "critical": 0,
+            "high": 1,
+            "medium": 1,
+            "low": 0
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 94.0
+        },
+        {
+          "repository_id": "DT2",
+          "finding_count": 2,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 1,
+            "low": 1
+          },
+          "verdict": "WARN",
+          "score": 98.8
+        },
+        {
+          "repository_id": "DT3",
+          "finding_count": 10,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 9,
+            "low": 1
+          },
+          "verdict": "WARN",
+          "score": 95.8
+        },
+        {
+          "repository_id": "DT4",
+          "finding_count": 39,
+          "counts": {
+            "critical": 14,
+            "high": 6,
+            "medium": 19,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT5",
+          "finding_count": 173,
+          "counts": {
+            "critical": 24,
+            "high": 7,
+            "medium": 142,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT6",
+          "finding_count": 88,
+          "counts": {
+            "critical": 2,
+            "high": 2,
+            "medium": 84,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT7",
+          "finding_count": 5,
+          "counts": {
+            "critical": 1,
+            "high": 1,
+            "medium": 3,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT8",
+          "finding_count": 5,
+          "counts": {
+            "critical": 1,
+            "high": 1,
+            "medium": 3,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT9",
+          "finding_count": 5,
+          "counts": {
+            "critical": 1,
+            "high": 1,
+            "medium": 3,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT10",
+          "finding_count": 69,
+          "counts": {
+            "critical": 16,
+            "high": 6,
+            "medium": 42,
+            "low": 5
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT11",
+          "finding_count": 23,
+          "counts": {
+            "critical": 6,
+            "high": 0,
+            "medium": 10,
+            "low": 7
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT12",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT13",
+          "finding_count": 15,
+          "counts": {
+            "critical": 0,
+            "high": 7,
+            "medium": 6,
+            "low": 2
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 76.6
+        },
+        {
+          "repository_id": "DT14",
+          "finding_count": 46,
+          "counts": {
+            "critical": 4,
+            "high": 1,
+            "medium": 28,
+            "low": 13
+          },
+          "verdict": "BLOCK",
+          "score": 10.1
+        }
+      ]
+    },
+    "combined_policy": {
+      "finding_count": 274,
+      "verdicts": {
+        "BLOCK": 9,
+        "BLOCK_PENDING_APPROVAL": 1,
+        "PASS": 3,
+        "WARN": 1
+      },
+      "per_repository": [
+        {
+          "repository_id": "DT1",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT2",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT3",
+          "finding_count": 8,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        },
+        {
+          "repository_id": "DT4",
+          "finding_count": 23,
+          "counts": {
+            "critical": 14,
+            "high": 0,
+            "medium": 9,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT5",
+          "finding_count": 144,
+          "counts": {
+            "critical": 24,
+            "high": 0,
+            "medium": 120,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT6",
+          "finding_count": 33,
+          "counts": {
+            "critical": 2,
+            "high": 0,
+            "medium": 31,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT7",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT8",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT9",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT10",
+          "finding_count": 24,
+          "counts": {
+            "critical": 16,
+            "high": 1,
+            "medium": 7,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT11",
+          "finding_count": 8,
+          "counts": {
+            "critical": 6,
+            "high": 0,
+            "medium": 2,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT12",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT13",
+          "finding_count": 7,
+          "counts": {
+            "critical": 0,
+            "high": 7,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 81.0
+        },
+        {
+          "repository_id": "DT14",
+          "finding_count": 24,
+          "counts": {
+            "critical": 4,
+            "high": 0,
+            "medium": 20,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 16.0
+        }
+      ]
+    },
+    "combined_policy_deduplicated": {
+      "finding_count": 220,
+      "verdicts": {
+        "BLOCK": 9,
+        "BLOCK_PENDING_APPROVAL": 1,
+        "PASS": 3,
+        "WARN": 1
+      },
+      "per_repository": [
+        {
+          "repository_id": "DT1",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT2",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT3",
+          "finding_count": 8,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        },
+        {
+          "repository_id": "DT4",
+          "finding_count": 22,
+          "counts": {
+            "critical": 14,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT5",
+          "finding_count": 109,
+          "counts": {
+            "critical": 23,
+            "high": 0,
+            "medium": 86,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT6",
+          "finding_count": 24,
+          "counts": {
+            "critical": 2,
+            "high": 0,
+            "medium": 22,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT7",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT8",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT9",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT10",
+          "finding_count": 23,
+          "counts": {
+            "critical": 15,
+            "high": 1,
+            "medium": 7,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT11",
+          "finding_count": 5,
+          "counts": {
+            "critical": 3,
+            "high": 0,
+            "medium": 2,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 38.0
+        },
+        {
+          "repository_id": "DT12",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT13",
+          "finding_count": 7,
+          "counts": {
+            "critical": 0,
+            "high": 7,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 81.0
+        },
+        {
+          "repository_id": "DT14",
+          "finding_count": 19,
+          "counts": {
+            "critical": 4,
+            "high": 0,
+            "medium": 15,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 16.0
+        }
+      ]
+    },
+    "manual_ch_confirmed_raw_ml": {
+      "finding_count": 179,
+      "verdicts": {
+        "BLOCK": 8,
+        "BLOCK_PENDING_APPROVAL": 1,
+        "PASS": 3,
+        "WARN": 2
+      },
+      "per_repository": [
+        {
+          "repository_id": "DT1",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT2",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT3",
+          "finding_count": 8,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        },
+        {
+          "repository_id": "DT4",
+          "finding_count": 13,
+          "counts": {
+            "critical": 5,
+            "high": 0,
+            "medium": 8,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT5",
+          "finding_count": 96,
+          "counts": {
+            "critical": 10,
+            "high": 0,
+            "medium": 86,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT6",
+          "finding_count": 22,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 22,
+            "low": 0
+          },
+          "verdict": "WARN",
+          "score": 96.0
+        },
+        {
+          "repository_id": "DT7",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT8",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT9",
+          "finding_count": 1,
+          "counts": {
+            "critical": 1,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 40
+        },
+        {
+          "repository_id": "DT10",
+          "finding_count": 12,
+          "counts": {
+            "critical": 5,
+            "high": 0,
+            "medium": 7,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 0
+        },
+        {
+          "repository_id": "DT11",
+          "finding_count": 5,
+          "counts": {
+            "critical": 3,
+            "high": 0,
+            "medium": 2,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 38.0
+        },
+        {
+          "repository_id": "DT12",
+          "finding_count": 0,
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "PASS",
+          "score": 100.0
+        },
+        {
+          "repository_id": "DT13",
+          "finding_count": 1,
+          "counts": {
+            "critical": 0,
+            "high": 1,
+            "medium": 0,
+            "low": 0
+          },
+          "verdict": "BLOCK_PENDING_APPROVAL",
+          "score": 95.0
+        },
+        {
+          "repository_id": "DT14",
+          "finding_count": 19,
+          "counts": {
+            "critical": 4,
+            "high": 0,
+            "medium": 15,
+            "low": 0
+          },
+          "verdict": "BLOCK",
+          "score": 16.0
+        }
+      ]
+    }
+  },
+  "score_sensitivity": {
+    "models": {
+      "implemented_capped": [
+        0.0,
+        0.0,
+        4.0,
+        100,
+        100,
+        60,
+        60,
+        60,
+        60,
+        100,
+        62.0,
+        0.0,
+        19.0,
+        84.0
+      ],
+      "uncapped_hierarchical": [
+        0.0,
+        0.0,
+        8.0,
+        288.0,
+        546.0,
+        62.0,
+        20.0,
+        20.0,
+        20.0,
+        312.0,
+        62.0,
+        0.0,
+        35.0,
+        95.0
+      ],
+      "equal_finding_count": [
+        0,
+        0,
+        8,
+        22,
+        109,
+        24,
+        1,
+        1,
+        1,
+        23,
+        5,
+        0,
+        7,
+        19
+      ],
+      "cvss_band_midpoint_sum": [
+        0.0,
+        0.0,
+        40.0,
+        173.0,
+        648.5,
+        129.0,
+        9.5,
+        9.5,
+        9.5,
+        185.0,
+        38.5,
+        0.0,
+        52.5,
+        113.0
+      ]
+    },
+    "spearman_vs_implemented_capped": {
+      "uncapped_hierarchical": 0.95,
+      "equal_finding_count": 0.776,
+      "cvss_band_midpoint_sum": 0.83
+    },
+    "alternative_weights": {
+      "W1_20_5_1_0.2": {
+        "weights": {
+          "critical": 20.0,
+          "high": 5.0,
+          "medium": 1.0,
+          "low": 0.2
+        },
+        "spearman_vs_W1": 1.0,
+        "repository_risk_values": [
+          0.0,
+          0.0,
+          8.0,
+          288.0,
+          546.0,
+          62.0,
+          20.0,
+          20.0,
+          20.0,
+          312.0,
+          62.0,
+          0.0,
+          35.0,
+          95.0
+        ]
+      },
+      "W2_16_4_1_0.25": {
+        "weights": {
+          "critical": 16,
+          "high": 4,
+          "medium": 1,
+          "low": 0.25
+        },
+        "spearman_vs_W1": 0.999,
+        "repository_risk_values": [
+          0.0,
+          0.0,
+          8.0,
+          232.0,
+          454.0,
+          54.0,
+          16.0,
+          16.0,
+          16.0,
+          251.0,
+          50.0,
+          0.0,
+          28.0,
+          79.0
+        ]
+      },
+      "W3_25_6_1_0.1": {
+        "weights": {
+          "critical": 25,
+          "high": 6,
+          "medium": 1,
+          "low": 0.1
+        },
+        "spearman_vs_W1": 0.999,
+        "repository_risk_values": [
+          0.0,
+          0.0,
+          8.0,
+          358.0,
+          661.0,
+          72.0,
+          25.0,
+          25.0,
+          25.0,
+          388.0,
+          77.0,
+          0.0,
+          42.0,
+          115.0
+        ]
+      }
+    },
+    "gate_is_weight_independent": true
+  },
+  "repositories": [
+    {
+      "repository_id": "DT1",
+      "automatic_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 100.0,
+      "deduplicated_score": 100.0,
+      "uncapped_hierarchical_score": 100.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 100.0,
+      "review_adjusted_verdict": "PASS",
+      "raw_count_risk": 0,
+      "hierarchical_risk": 0.0,
+      "cvss_midpoint_risk": 0.0
+    },
+    {
+      "repository_id": "DT2",
+      "automatic_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 100.0,
+      "deduplicated_score": 100.0,
+      "uncapped_hierarchical_score": 100.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 100.0,
+      "review_adjusted_verdict": "PASS",
+      "raw_count_risk": 0,
+      "hierarchical_risk": 0.0,
+      "cvss_midpoint_risk": 0.0
+    },
+    {
+      "repository_id": "DT3",
+      "automatic_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 8,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 8,
+        "low": 0
+      },
+      "automatic_score": 96.0,
+      "deduplicated_score": 96.0,
+      "uncapped_hierarchical_score": 92.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 8,
+        "low": 0
+      },
+      "review_adjusted_score": 96.0,
+      "review_adjusted_verdict": "WARN",
+      "raw_count_risk": 8,
+      "hierarchical_risk": 8.0,
+      "cvss_midpoint_risk": 40.0
+    },
+    {
+      "repository_id": "DT4",
+      "automatic_counts": {
+        "critical": 14,
+        "high": 0,
+        "medium": 9,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 14,
+        "high": 0,
+        "medium": 8,
+        "low": 0
+      },
+      "automatic_score": 0,
+      "deduplicated_score": 0,
+      "uncapped_hierarchical_score": 0,
+      "review_adjusted_counts": {
+        "critical": 5,
+        "high": 0,
+        "medium": 8,
+        "low": 0
+      },
+      "review_adjusted_score": 0,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 22,
+      "hierarchical_risk": 288.0,
+      "cvss_midpoint_risk": 173.0
+    },
+    {
+      "repository_id": "DT5",
+      "automatic_counts": {
+        "critical": 24,
+        "high": 0,
+        "medium": 120,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 23,
+        "high": 0,
+        "medium": 86,
+        "low": 0
+      },
+      "automatic_score": 0,
+      "deduplicated_score": 0,
+      "uncapped_hierarchical_score": 0,
+      "review_adjusted_counts": {
+        "critical": 10,
+        "high": 0,
+        "medium": 86,
+        "low": 0
+      },
+      "review_adjusted_score": 0,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 109,
+      "hierarchical_risk": 546.0,
+      "cvss_midpoint_risk": 648.5
+    },
+    {
+      "repository_id": "DT6",
+      "automatic_counts": {
+        "critical": 2,
+        "high": 0,
+        "medium": 31,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 2,
+        "high": 0,
+        "medium": 22,
+        "low": 0
+      },
+      "automatic_score": 40,
+      "deduplicated_score": 40,
+      "uncapped_hierarchical_score": 38.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 22,
+        "low": 0
+      },
+      "review_adjusted_score": 96.0,
+      "review_adjusted_verdict": "WARN",
+      "raw_count_risk": 24,
+      "hierarchical_risk": 62.0,
+      "cvss_midpoint_risk": 129.0
+    },
+    {
+      "repository_id": "DT7",
+      "automatic_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 40,
+      "deduplicated_score": 40,
+      "uncapped_hierarchical_score": 80.0,
+      "review_adjusted_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 40,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 1,
+      "hierarchical_risk": 20.0,
+      "cvss_midpoint_risk": 9.5
+    },
+    {
+      "repository_id": "DT8",
+      "automatic_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 40,
+      "deduplicated_score": 40,
+      "uncapped_hierarchical_score": 80.0,
+      "review_adjusted_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 40,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 1,
+      "hierarchical_risk": 20.0,
+      "cvss_midpoint_risk": 9.5
+    },
+    {
+      "repository_id": "DT9",
+      "automatic_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 40,
+      "deduplicated_score": 40,
+      "uncapped_hierarchical_score": 80.0,
+      "review_adjusted_counts": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 40,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 1,
+      "hierarchical_risk": 20.0,
+      "cvss_midpoint_risk": 9.5
+    },
+    {
+      "repository_id": "DT10",
+      "automatic_counts": {
+        "critical": 16,
+        "high": 1,
+        "medium": 7,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 15,
+        "high": 1,
+        "medium": 7,
+        "low": 0
+      },
+      "automatic_score": 0,
+      "deduplicated_score": 0,
+      "uncapped_hierarchical_score": 0,
+      "review_adjusted_counts": {
+        "critical": 5,
+        "high": 0,
+        "medium": 7,
+        "low": 0
+      },
+      "review_adjusted_score": 0,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 23,
+      "hierarchical_risk": 312.0,
+      "cvss_midpoint_risk": 185.0
+    },
+    {
+      "repository_id": "DT11",
+      "automatic_counts": {
+        "critical": 6,
+        "high": 0,
+        "medium": 2,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 3,
+        "high": 0,
+        "medium": 2,
+        "low": 0
+      },
+      "automatic_score": 0,
+      "deduplicated_score": 38.0,
+      "uncapped_hierarchical_score": 38.0,
+      "review_adjusted_counts": {
+        "critical": 3,
+        "high": 0,
+        "medium": 2,
+        "low": 0
+      },
+      "review_adjusted_score": 38.0,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 5,
+      "hierarchical_risk": 62.0,
+      "cvss_midpoint_risk": 38.5
+    },
+    {
+      "repository_id": "DT12",
+      "automatic_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 100.0,
+      "deduplicated_score": 100.0,
+      "uncapped_hierarchical_score": 100.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 100.0,
+      "review_adjusted_verdict": "PASS",
+      "raw_count_risk": 0,
+      "hierarchical_risk": 0.0,
+      "cvss_midpoint_risk": 0.0
+    },
+    {
+      "repository_id": "DT13",
+      "automatic_counts": {
+        "critical": 0,
+        "high": 7,
+        "medium": 0,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 0,
+        "high": 7,
+        "medium": 0,
+        "low": 0
+      },
+      "automatic_score": 81.0,
+      "deduplicated_score": 81.0,
+      "uncapped_hierarchical_score": 65.0,
+      "review_adjusted_counts": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0
+      },
+      "review_adjusted_score": 95.0,
+      "review_adjusted_verdict": "BLOCK_PENDING_APPROVAL",
+      "raw_count_risk": 7,
+      "hierarchical_risk": 35.0,
+      "cvss_midpoint_risk": 52.5
+    },
+    {
+      "repository_id": "DT14",
+      "automatic_counts": {
+        "critical": 4,
+        "high": 0,
+        "medium": 20,
+        "low": 0
+      },
+      "deduplicated_counts": {
+        "critical": 4,
+        "high": 0,
+        "medium": 15,
+        "low": 0
+      },
+      "automatic_score": 16.0,
+      "deduplicated_score": 16.0,
+      "uncapped_hierarchical_score": 5.0,
+      "review_adjusted_counts": {
+        "critical": 4,
+        "high": 0,
+        "medium": 15,
+        "low": 0
+      },
+      "review_adjusted_score": 16.0,
+      "review_adjusted_verdict": "BLOCK",
+      "raw_count_risk": 19,
+      "hierarchical_risk": 95.0,
+      "cvss_midpoint_risk": 113.0
+    }
+  ]
+}

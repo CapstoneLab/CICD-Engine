@@ -37,7 +37,7 @@ case "$mode" in
       echo "Connected $backend_container to $network_name as backend."
     fi
 
-    compose up -d --build cicd-engine
+    compose up -d --build cicd-engine public-ingress
     ;;
 
   managed)

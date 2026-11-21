@@ -66,3 +66,33 @@ def test_streamer_observes_append_log_and_flushes_on_close(monkeypatch, tmp_path
         "hello",
         "world",
     ]
+
+
+def test_quiet_running_worker_sends_heartbeat_without_fabricated_logs(monkeypatch):
+    import threading
+    received = threading.Event()
+    payloads = []
+    def fake_post(**kwargs):
+        payloads.append(kwargs['payload'])
+        received.set()
+        return True, {'http_status': '200'}
+    monkeypatch.setattr(log_stream, 'post_callback_with_retry', fake_post)
+    with CallbackLogStreamer(callback_url='http://backend/get-results', callback_token='test',
+            job_id='job-quiet', repo_url='https://github.com/owner/repo', branch='main', heartbeat_interval_sec=0.05):
+        assert received.wait(1)
+    assert payloads[0]['type'] == 'heartbeat'
+    assert payloads[0]['job_id'] == 'job-quiet'
+    assert 'events' not in payloads[0]
+
+
+def test_existing_backlog_is_coalesced_in_order_without_losing_shutdown_tail(monkeypatch):
+    batches = []
+    streamer = CallbackLogStreamer(callback_url='http://backend/get-results', callback_token='test',
+        job_id='job', repo_url='https://github.com/a/b', branch='main')
+    monkeypatch.setattr(streamer, '_deliver', lambda events: batches.append([e.sequence for e in events]))
+    for i in range(1200):
+        streamer._queue.put(_event(i+1))
+    streamer._queue.put(streamer._STOP)
+    streamer._run()
+    assert [seq for batch in batches for seq in batch] == list(range(1,1201))
+    assert [len(batch) for batch in batches] == [500,500,200]

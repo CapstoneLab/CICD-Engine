@@ -357,10 +357,11 @@ def _node_install_env(package_manager: str) -> dict[str, str]:
 
 def _resolve_package_manager_runner(repo_dir: Path, package_manager: str, log_file: Path) -> _PackageManagerResolution:
     executable = package_manager_executable(package_manager)
-    if is_command_available(executable):
-        return _PackageManagerResolution(command_transform="direct")
+    executable_available = is_command_available(executable)
 
     if package_manager not in {"yarn", "pnpm"}:
+        if executable_available:
+            return _PackageManagerResolution(command_transform="direct")
         return _PackageManagerResolution(
             command_transform="direct",
             error=f"Command not found: {package_manager}",
@@ -368,6 +369,8 @@ def _resolve_package_manager_runner(repo_dir: Path, package_manager: str, log_fi
 
     corepack = corepack_executable()
     if not is_command_available(corepack):
+        if executable_available:
+            return _PackageManagerResolution(command_transform="direct")
         return _PackageManagerResolution(
             command_transform="direct",
             error=(
@@ -383,7 +386,7 @@ def _resolve_package_manager_runner(repo_dir: Path, package_manager: str, log_fi
             error=f"Failed to bootstrap {package_manager} via corepack",
         )
 
-    if is_command_available(executable):
+    if executable_available or is_command_available(executable):
         return _PackageManagerResolution(command_transform="direct")
 
     # Use corepack runner even when shim is not present on PATH in this environment.

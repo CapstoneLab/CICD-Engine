@@ -49,14 +49,14 @@ def run_clone(
             summary_message="git clone failed. Check clone.log for details",
         )
 
-    commit_note = ""
-    if commit_sha:
-        checked_out = _checkout_commit(commit_sha, repo_dir, log_file, repo_token)
-        commit_note = (
-            f", commit {commit_sha[:12]} checked out"
-            if checked_out
-            else f", commit {commit_sha[:12]} unavailable — fell back to {used_branch} HEAD"
-        )
+    if commit_sha and not _checkout_commit(commit_sha, repo_dir, log_file, repo_token):
+        shutil.rmtree(repo_dir)
+        return StepRunResult(status="failed", exit_code=1, summary_message="Requested commit unavailable; refusing branch HEAD fallback")
+    sanitized = run_command(["git", "remote", "set-url", "origin", repo_url], repo_dir, log_file)
+    if sanitized.exit_code:
+        shutil.rmtree(repo_dir)
+        return StepRunResult(status="failed", exit_code=1, summary_message="Cannot sanitize repository credentials")
+    commit_note = f", commit {commit_sha[:12]} checked out" if commit_sha else ""
 
     return StepRunResult(
         status="success",

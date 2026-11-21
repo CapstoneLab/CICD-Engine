@@ -1,0 +1,85 @@
+{
+  "review_design": {
+    "reviewers": 1,
+    "inter_rater_kappa": null,
+    "critical_high_sampling": "census",
+    "medium_cwe79_sampling": "census",
+    "medium_cwe22_sampling": "simple random sample without replacement",
+    "medium_cwe22_seed": 20260723,
+    "medium_cwe22_population": 191,
+    "medium_cwe22_sample": 24,
+    "credential_liveness_tested": false,
+    "exploit_execution_performed": false
+  },
+  "record_count": 107,
+  "unique_location_count": 101,
+  "record_assessment_counts": {
+    "confirmed_pattern": 33,
+    "context_only": 28,
+    "duplicate": 6,
+    "false_positive": 40
+  },
+  "unique_assessment_counts": {
+    "confirmed_pattern": 33,
+    "context_only": 28,
+    "false_positive": 40
+  },
+  "unique_by_severity_assessment": {
+    "critical|confirmed_pattern": 30,
+    "critical|context_only": 21,
+    "critical|false_positive": 13,
+    "high|confirmed_pattern": 1,
+    "high|context_only": 1,
+    "high|false_positive": 6,
+    "medium|confirmed_pattern": 2,
+    "medium|context_only": 6,
+    "medium|false_positive": 21
+  },
+  "unique_by_cwe_assessment": {
+    "CWE-22|context_only": 6,
+    "CWE-22|false_positive": 17,
+    "CWE-319|confirmed_pattern": 1,
+    "CWE-319|context_only": 1,
+    "CWE-319|false_positive": 6,
+    "CWE-78|confirmed_pattern": 14,
+    "CWE-78|context_only": 4,
+    "CWE-78|false_positive": 5,
+    "CWE-798|confirmed_pattern": 16,
+    "CWE-798|context_only": 17,
+    "CWE-798|false_positive": 8,
+    "CWE-79|confirmed_pattern": 2,
+    "CWE-79|false_positive": 4
+  },
+  "unique_by_sample_group_assessment": {
+    "critical_high_census": {
+      "confirmed_pattern": 31,
+      "context_only": 22,
+      "false_positive": 19
+    },
+    "medium_cwe22_random_n24_seed_20260723": {
+      "context_only": 6,
+      "false_positive": 17
+    },
+    "medium_cwe79_census": {
+      "confirmed_pattern": 2,
+      "false_positive": 4
+    }
+  },
+  "unique_by_deployment_relevance": {
+    "build_tooling": 15,
+    "ci_release": 12,
+    "demo_source": 6,
+    "deployment_config": 3,
+    "developer_tooling": 5,
+    "documentation": 5,
+    "example_config": 1,
+    "generated_build_tooling": 2,
+    "library_source": 2,
+    "production_source": 18,
+    "setup_resource": 1,
+    "test": 22,
+    "test_application": 2,
+    "test_fixture": 6,
+    "test_tooling": 1
+  }
+}

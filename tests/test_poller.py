@@ -93,3 +93,63 @@ def test_spawn_pipeline_forwards_job_contract_without_logging_token(
     assert token not in spawn_log.read_text(encoding="utf-8")
     assert "engine-shared-secret" not in spawn_log.read_text(encoding="utf-8")
     assert "****" in spawn_log.read_text(encoding="utf-8")
+
+
+def test_termination_stops_runner_and_child_processes(tmp_path):
+    import subprocess
+    import sys
+    import time
+    marker = tmp_path / "ready"
+    script = "import subprocess,time,pathlib; subprocess.Popen(['sleep','60']); pathlib.Path(%r).touch(); time.sleep(60)" % str(marker)
+    proc = subprocess.Popen([sys.executable, "-c", script], start_new_session=True)
+    try:
+        deadline = time.monotonic() + 3
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(.02)
+        assert marker.exists()
+        assert poller._group_alive(proc.pid)
+        assert poller._terminate_pipeline(proc)
+        assert proc.poll() is not None
+        assert not poller._group_alive(proc.pid)
+    finally:
+        poller._terminate_pipeline(proc)
+        proc.wait()
+
+
+def test_cancel_does_not_ack_unverified_process(monkeypatch):
+    calls = []
+    def http(method, url, **kwargs):
+        calls.append(method)
+        return 200, {"job_ids": ["job-1"]}, ""
+    monkeypatch.setattr(poller, "_http_json", http)
+    monkeypatch.setattr(poller, "_terminate_pipeline", lambda proc: False)
+    running = {"job-1": Mock()}
+    assert poller._process_cancellations(running, "http://backend", "token", "worker") == {"job-1"}
+    assert calls == ["GET"]
+    assert "job-1" in running
+
+
+def test_cancel_racing_verified_process_exit_is_acknowledged(monkeypatch):
+    process = Mock()
+    process.termination_verified = True
+    monkeypatch.setattr(poller, "_finished_processes", {"job-done": process})
+    calls = []
+    def http(method, url, **kwargs):
+        calls.append(method)
+        return 200, {"job_ids": ["job-done"]}, ""
+    monkeypatch.setattr(poller, "_http_json", http)
+    monkeypatch.setattr(poller, "_terminate_pipeline", lambda proc: (_ for _ in ()).throw(AssertionError("must not signal a reaped PID")))
+    poller._process_cancellations({}, "http://backend", "token", "worker")
+    assert calls == ["GET", "POST"]
+    assert not poller._finished_processes
+
+
+def test_claim_next_uses_atomic_endpoint_with_batch_timeout(monkeypatch):
+    calls=[]
+    def http(method,url,**kwargs):
+        calls.append((method,url,kwargs))
+        return 200, {"jobs":[{"job_id":"fresh","approved_cwes":[]}]}, ""
+    monkeypatch.setattr(poller,"_http_json",http)
+    assert poller._claim_next("http://backend","token","engine",5)==[{"job_id":"fresh","approved_cwes":[]}]
+    assert calls[0][0:2]==("POST","http://backend/api/jobs/claim-next?limit=5")
+    assert calls[0][2]["timeout_sec"]==60

@@ -1,0 +1,525 @@
+CI/CD 보안 운영정책 보완본 v1.2
+================================
+
+문서 상태: 환경 확인 반영본, 정식 시행 전
+문서 소유자: 미지정
+승인번호: 미지정
+시행일: 미지정
+다음 검토일: 시행일로부터 3개월 후
+확인일: 2026-11-14
+적용 범위: 소스코드, CI/CD 실행기, 빌드·테스트·릴리스·배포, 아티팩트 및 공급망
+승인 필요: 정책 소유자, 정보보호 책임자, 개발 책임자, 운영 책임자
+
+본 문서는 실제 호스트와 CICD-Engine 구현을 확인하여 작성했다. 문서 소유자,
+승인번호, 시행일이 확정되기 전에는 정식 전사 정책으로 공표하지 않는다.
+
+1. 정책 목적과 적용범위
+-----------------------
+
+본 정책은 승인된 코드와 검증된 아티팩트만 배포하도록 CI/CD 전 과정의
+보안통제, 위험판정, 예외, 긴급배포, 감사증빙 기준을 정한다.
+
+적용 대상:
+- 내부 개발팀, 외부 협력사 및 서비스 계정
+- 개발·시험·운영 환경
+- 소스 저장소, 실행기(Runner), 패키지 저장소, 컨테이너 레지스트리
+- 애플리케이션, IaC, 오픈소스 의존성, 컨테이너 이미지, SBOM, provenance
+
+외부 협력사에는 계약 또는 연결 방식에 따라 본 정책의 적용 항목과 증빙 제출
+책임을 별도 지정한다.
+
+1.1 현재 적용 대상과 환경
+-------------------------
+
+정책 엔진 저장소:
+- 경로: /home/capstone/CICD-Engine
+- 원격 저장소: git@github.com:CapstoneLab/CICD-Engine.git
+- 현재 확인 브랜치: agent/fix-container-log-path
+- 현재 작업트리는 변경사항이 있으므로 정책 승인 기준 버전으로 사용하지 않는다.
+- 승인 기준은 보호된 main 브랜치의 특정 commit_sha로 고정한다.
+
+연계 애플리케이션 저장소:
+- 경로: /home/capstone/Capstone-Back
+- 원격 저장소: https://github.com/CapstoneLab/Capstone-Back.git
+- CI는 GitHub Actions에서 Python 3.11 테스트와 Docker 이미지 빌드를 수행한다.
+- CD는 CI 성공 후 GHCR 이미지 게시를 수행한다.
+
+현재 실행 호스트:
+- 호스트명: capstone-NucBoxG3S
+- 운영체제: Linux x86_64, Ubuntu 계열 커널 7.0.0-38-generic
+- 실행 사용자: capstone
+- 실행 사용자는 docker 그룹에 속한다.
+- 배포 방식: 단일 호스트의 local-docker
+- 지원하지 않는 배포 대상: 외부 Kubernetes, 클라우드 전용 배포, 다중 Runner 운영
+
+확인된 도구 버전:
+- Python 3.14.4
+- Node.js v22.22.2
+- npm 10.9.7
+- Semgrep 1.157.0
+- Gitleaks 8.30.1
+- Docker 29.7.2
+- Docker Compose v5.4.0
+
+운영 기록:
+- 실행 결과는 CICD-Engine/runs/run-YYYYMMDD-XXX/ 아래에 저장된다.
+- 주요 결과는 pipeline_result.json, security_findings.json,
+  security_summary.json, security_verdict.json, 로그 및 배포 결과다.
+- 실행 로그에 Secret 원문을 저장하지 않도록 해야 하며, 기존 로그는 정기적으로
+  접근권한과 보존기간을 점검한다.
+
+2. 정책 우선순위
+----------------
+
+판정은 다음 순서로 수행한다. 동시에 여러 조건이 해당하면 가장 제한적인
+유효 조치를 적용한다.
+
+1) 위험한 실행·데이터 반출·악성행위: STOP_JOB + QUARANTINE
+2) 유효 운영 Secret 노출·권한 우회·공급망 무결성 실패: SECURITY_HOLD
+3) 필수 보안검사 실패·누락·결과 불신: status=SCAN_ERROR, action=MANUAL_REVIEW 또는 BLOCK_DEPLOY
+4) 확정 P0/P1 또는 검증된 복합 공격경로: BLOCK
+5) 신규 P2 누적 기준: WARN, MANUAL_REVIEW, BLOCK_DEPLOY
+6) 유효한 예외와 보완통제가 있는 P2: ALLOW_WITH_TRACKING
+7) P3/P4: ALLOW 및 추적
+
+취약점 발견만으로 전체 분석 엔진이나 정상 서비스를 중단하지 않는다.
+실행 자체가 위험한 경우에만 해당 작업과 관련 실행기를 중단·격리한다.
+
+3. 역할과 책임
+--------------
+
+정책 소유자:
+- 정책 승인, 버전 관리, 연 1회 이상 검토
+
+정보보호 책임자:
+- P0/P1 확정 기준 관리
+- 예외 및 Break-glass 승인
+- SECURITY_HOLD 해제와 사고대응 전환 승인
+
+개발팀:
+- 취약점 원인 분석·수정
+- 담당자와 조치기한 준수
+- 오탐 이의제기 및 재현 증거 제출
+
+운영팀:
+- 배포 승인·실행
+- 운영환경 검증 및 롤백
+- 배포 후 모니터링과 장애 대응
+
+CI/CD 플랫폼 관리자:
+- 게이트·Runner·권한·스캐너 운영
+- 정책 우회 방지 및 실행 로그 보존
+
+서비스 소유자:
+- 자산 중요도, 외부 노출, 업무 영향 확인
+- 조건부 배포의 잔여위험 수용 의견 제출
+
+사고대응 담당자:
+- 악성행위·Secret 유출·데이터 반출 조사
+- 증거 보존, 자격증명 폐기·교체, 재발 방지
+
+기본 승인 기준:
+- 일반 P2 예외: 서비스 소유자 + 보안 담당자 1인
+- 긴급배포: 정보보호 책임자 또는 지정 대리자 + 운영 책임자 2인
+- SECURITY_HOLD 해제: 정보보호 책임자와 사고대응 담당자 확인
+
+4. 위험등급과 판정 기준
+-----------------------
+
+CVSS는 기술적 심각도이며, P등급은 조직의 최종 배포 위험도이다.
+CVSS 점수는 변경하지 않고 최종 P등급만 추가 위험정보에 따라 조정한다.
+
+P0 긴급:
+- 실제 악성 실행·데이터 반출
+- 유효 운영 Secret 노출
+- 확인된 현재 침해
+- 중요 자산에 대한 즉시 악용 가능 공격경로
+- 대응: STOP_JOB 또는 QUARANTINE, SECURITY_HOLD, 병합·릴리스·배포 차단
+
+P1 높음:
+- 실제 도달 가능한 RCE, 인증 우회, SQL Injection 등
+- 중요 운영 자산에 적용되는 High/Critical 취약점
+- 검증된 복합 공격경로
+- 대응: BLOCK_MERGE, BLOCK_RELEASE, BLOCK_DEPLOY
+
+P0와 P1의 구분:
+- 실제 악용, 침해 진행, 데이터 반출 또는 Secret 사용 흔적이 확인되면 P0다.
+- 악용은 확인되지 않았지만 실제 도달 가능한 심각한 공격경로가 검증되면 P1이다.
+- 스캐너가 Critical 또는 High라고 표시한 것만으로 P0를 확정하지 않는다.
+
+P2 중간:
+- 적용 가능하지만 제한적 영향의 Medium 위험
+- 공격경로가 확인되지 않은 중간 수준 위험
+- 대응: 담당자·기한·추적 이슈·승인 등록 시 조건부 허용
+
+P3 낮음:
+- 영향과 악용 가능성이 제한된 Low 위험
+- 대응: 이슈와 개선기한 등록 후 허용
+
+P4 정보:
+- 정보성 경고, 권고, 모범사례
+- CVSS 0.0과 동일한 의미가 아님
+- 대응: 기록 및 정기 검토
+
+조치 SLA:
+- P0: 즉시 보안 담당자 호출 및 사고대응 착수
+- P1: 7일 이내 개선 또는 정보보호 책임자의 제한적 예외 승인
+- P2: 30일 이내 개선
+- P3: 90일 이내 개선
+- P4: 다음 정기 검토 시점까지 평가
+
+위 SLA는 법령이나 표준이 아닌 조직 자체 기준이다.
+
+P1 확정 전 필수 확인:
+- 해당 버전과 코드 경로가 실제 대상인지
+- 사용자 입력 또는 외부 요청이 취약 경로에 도달하는지
+- 운영환경에 포함되는지
+- 외부 노출과 자산 중요도
+- 재현 증거 또는 신뢰도 높은 분석 결과
+
+5. 절대 차단 및 상태 정의
+-------------------------
+
+STOP_JOB:
+- 위험한 실행 중인 Job만 종료한다.
+- Runner와 관련 아티팩트는 필요 시 격리한다.
+
+SECURITY_HOLD:
+- 운영 배포를 차단하고 사고조사 또는 보안 확인이 끝날 때까지 재개하지 않는다.
+
+SCAN_ERROR:
+- 필수 검사가 성공적으로 끝나지 않았음을 의미한다.
+- PASS나 ALLOW로 처리하지 않는다.
+
+BLOCK:
+- 병합·릴리스·배포 중 해당 단계의 진행을 금지한다.
+
+QUARANTINE:
+- 침해 또는 변조가 의심되는 Runner·아티팩트·실행환경을 격리한다.
+
+다음 사건은 위험 수용으로 우회할 수 없다:
+- 유효 운영 Secret 노출
+- 확인된 악성 실행 또는 비인가 데이터 반출
+- 승인 대상과 다른 아티팩트 Digest·서명·provenance
+- 권한 없는 운영 배포 또는 정책 우회
+- 필수 검사의 누락·실패·타임아웃·결과 변조
+
+아티팩트 상태:
+- 단순 검증 실패: BLOCK_RELEASE 또는 BLOCK_DEPLOY
+- 변조·침해 정황: SECURITY_HOLD + QUARANTINE
+
+6. 단계별 보안 게이트
+---------------------
+
+Gate A - Push/PR:
+- Secret, 금지 패턴, SAST 실행
+- 신뢰할 수 없는 PR에 운영 Secret과 배포 토큰 제공 금지
+- P0/P1 또는 절대 차단 사건은 BLOCK_MERGE
+
+Gate B - Merge:
+- 필수 검사 성공, 코드 리뷰, 보호 브랜치 확인
+- 정책 파일은 별도 권한자의 승인 필요
+- 승인 후 커밋이 변경되면 전체 검사와 승인을 무효화
+
+Gate C - Build/Release:
+- SCA, 이미지, IaC 검사
+- SBOM과 provenance 생성
+- 승인된 패키지 저장소와 버전 사용
+- 아티팩트 Digest·서명·provenance 검증
+
+Gate D - Stage:
+- DAST, API 인증·인가, 중요 기능 보안시험
+- P0/P1은 운영 배포 차단
+
+Gate E - Production Deploy:
+- 검사된 commit_sha와 artifact_digest 일치
+- 정책 버전, 검사 범위, 승인, 배포자 권한 확인
+- 예외 만료 여부와 최신 위험정보 재평가
+
+Gate F - Post-deploy:
+- 신규 CVE·악용정보·SBOM 변경 재평가
+- 신규 P0/P1 발생 시 신규 배포 정지
+- 수정 후 동일 조건으로 재검사하여 VERIFIED 처리
+
+7. 누적 취약점 기준
+-------------------
+
+대상은 릴리스 단위의 신규·고유·확정 또는 높은 신뢰도의 P2이다.
+스캐너 중복 결과는 repository, rule/CWE/CVE, 위치 또는 패키지·버전,
+공격표면과 자산을 기준으로 정규화한다.
+
+- 0건: 다른 게이트가 통과하면 허용
+- 1~4건: 경고, 이슈·담당자·기한 등록
+- 5~9건: 강화 경고, 개선계획 필수
+- 10~29건: MANUAL_REVIEW, 승인 전 운영 배포 보류
+- 30건 이상: BLOCK_DEPLOY
+
+이 수치는 조직 자체 가드레일이다. 프로젝트 규모, 변경량, 자산 중요도,
+오탐률과 과거 분포를 기준으로 분기별 재평가한다.
+PR을 분할하여 누적 기준을 우회할 수 없으며 목표 릴리스 기준으로 집계한다.
+
+Medium 3건이라도 실제 공격경로가 재현되면 P1 또는 P0로 상향할 수 있다.
+단순히 같은 유형이 여러 건이라는 이유만으로 등급을 상향하지 않는다.
+
+8. 스캐너 장애와 오탐
+--------------------
+
+필수 스캐너 실패·타임아웃·범위 누락·결과 무결성 실패:
+1) SCAN_ERROR 기록
+2) 동일 조건으로 최대 2회 자동 재시도
+3) 계속 실패하면 배포 보류 및 담당자 통보
+4) 장애 원인과 예상 복구시간 기록
+5) 긴급배포 필요성 평가
+6) 승인된 Break-glass 적용 여부 결정
+7) 사후 전체 재검사
+
+비필수 분석기 장애는 사전 승인된 목록에 한해 추적 이슈 후 허용할 수 있다.
+
+오탐 제외 조건:
+- 코드 위치·호출 경로·의존성 버전·재현 결과 증거
+- 보안 담당자 검토
+- 적용 범위와 만료일
+- 원본 탐지 및 승인 로그 보존
+
+오탐 제외는 해당 시그니처·커밋·범위에만 적용하며 스캐너 전체 비활성화는 금지한다.
+
+9. 예외 및 Break-glass
+----------------------
+
+예외 승인서에는 다음을 반드시 기록한다.
+- 승인자와 승인일
+- 대상 commit_sha와 artifact_digest
+- 서비스·환경·발견사항
+- 잔여위험과 보완통제
+- 사유와 적용범위
+- 만료일·재검토일
+- 담당자와 개선기한
+
+Break-glass는 다음 조건을 모두 만족해야 한다.
+- 장애·긴급 보안패치 등 명확한 사유
+- 승인자 2인
+- 허용 범위와 유효시간 제한
+- 강화된 모니터링
+- 사후 전체 검사와 결과보고 기한 지정
+- 만료 후 자동 차단 또는 재승인
+
+활성 Secret, 악성 실행, 무결성 실패, 권한 우회는 Break-glass로 허용하지 않는다.
+
+10. 재개와 종료
+---------------
+
+BLOCK:
+- 수정 커밋 생성
+- 필수 검사 전체 재실행
+- 동일 커밋·아티팩트 일치 확인
+- 위험 해소와 승인 확인 후 해제
+
+SECURITY_HOLD:
+- 사고조사, 자격증명 폐기·교체, 증거 보존
+- 영향을 받은 Runner·아티팩트 확인
+- 정보보호 책임자와 사고대응 담당자 확인 후 재개
+
+SCAN_ERROR:
+- 동일 정책 버전과 전체 범위로 필수 검사 성공
+- 결과 무결성 확인 후 재개
+
+MANUAL_REVIEW:
+- 검토자, 증거, 적용범위, 승인기간 기록 후 재개
+
+11. 필수 데이터와 감사증빙
+--------------------------
+
+필수 데이터:
+- finding_id, scanner, scanner_version, rule_id
+- repository, branch, commit_sha, pipeline_id
+- artifact_digest, image_digest, SBOM, provenance
+- CVE/CWE, CVSS 버전·벡터·점수
+- asset_criticality, environment, exposure, exploit_evidence
+- final_risk_tier, gate_decision, decision_reason
+- policy_version, evidence_uri, scanner_status
+- owner, remediation_due, exception_expiry, retest_result
+
+Secret 원문과 민감한 코드 원문은 일반 감사로그에 저장하지 않는다.
+필요한 경우 접근통제된 증거 저장소의 참조와 안전한 해시만 기록한다.
+
+12. 정책 엔진 규범적 의사코드
+-----------------------------
+
+function evaluateGate(event, findings, scan, context, artifact):
+    assert context.commit_sha and context.policy_version
+
+    if confirmedMaliciousExecution(event) or confirmedDataExfiltration(event):
+        stopJob()
+        quarantineRunnerAndArtifacts()
+        notifySecurity()
+        return SECURITY_HOLD
+
+    if confirmedLiveProductionSecret(findings):
+        revokeAndRotateSecret()
+        notifySecurity()
+        return SECURITY_HOLD
+
+    if unauthorizedDeployment(event):
+        stopDeploymentJob()
+        notifySecurity()
+        return SECURITY_HOLD
+
+    if artifact.exists and artifactIntegrityFailure(artifact, context):
+        quarantineArtifact()
+        if tamperingSuspected(artifact):
+            return SECURITY_HOLD
+        return BLOCK
+
+    if not mandatoryChecksCompleteAndBoundToCommit(scan, context):
+        scheduleBoundedRetry()
+        return SCAN_ERROR
+
+    risk = assessApplicabilityAndRisk(findings, context)
+
+    if risk.hasConfirmedP0OrP1 or risk.hasVerifiedAttackChain:
+        return BLOCK
+
+    if risk.newP2Count >= 30:
+        return BLOCK
+
+    if risk.newP2Count >= 10:
+        return MANUAL_REVIEW
+
+    if risk.hasP2:
+        if validTrackingAndApproval(context):
+            return ALLOW_WITH_TRACKING
+        return MANUAL_REVIEW
+
+    return ALLOW
+
+13. 현재 구현과 정책의 적용 상태
+--------------------------------
+
+현재 CICD-Engine은 다음 기능을 실제 제공한다.
+- 저장소 clone, install, test, build, deploy 단계 실행
+- Gitleaks 기반 Secret 검사
+- Semgrep 기반 정적 분석
+- 보안 결과의 JSON·로그·콜백 저장
+- 16개 CWE 보안 카탈로그 기반 Critical/High/Medium/Low 판정
+- 보호된 판정 결과에 따른 security_gate 실행
+- 단일 Ubuntu 호스트의 local-docker 배포
+
+현재 엔진의 실제 판정:
+- Gitleaks 탐지 단계 자체는 결과를 수집하고 성공으로 끝날 수 있다.
+- 그러나 탐지 결과가 보안 카탈로그의 Hardcoded Secret(CWE-798)으로 분류되면
+  최종 security_gate에서 Critical로 차단된다.
+- Semgrep 결과는 현재 16개 CWE 카탈로그에 매핑된 항목을 게이트에 반영한다.
+- 카탈로그 외 결과는 안전하다는 뜻이 아니며 out_of_scope로 기록한다.
+
+현재 반영된 통제:
+- production/staging의 out_of_scope 결과는 자동 PASS가 아니라 MANUAL_REVIEW로 처리한다.
+- Gitleaks Secret은 최종 보안 게이트에서 P0 및 BLOCK으로 처리한다.
+- 카탈로그 Critical/High는 P1 계열 차단으로 처리한다.
+- 고유 Medium/P2가 production/staging에서 10~29건이면 MANUAL_REVIEW,
+  30건 이상이면 BLOCK으로 처리한다.
+- 판정 결과에 policy_version, final_risk_tier, unique_finding_count,
+  medium_finding_count를 기록한다.
+
+정식 운영 전 추가 구현 조건:
+- 필수 스캐너의 실행 여부, 대상 commit_sha, 정책 버전, 검사 범위를 함께 검증한다.
+- 보안정책 파일과 보안 카탈로그 변경에는 별도 승인과 보호 브랜치 규칙을 적용한다.
+- 아티팩트의 digest·서명·provenance를 배포 단계에서 실제 검증한다.
+- 예외 승인, 만료, 재평가를 저장하고 만료 시 MANUAL_REVIEW 또는 BLOCK_DEPLOY로 처리한다.
+- 운영 배포 권한과 단일 호스트 Docker 권한을 최소권한 계정으로 분리한다.
+- 현재 작업트리 변경사항은 운영 정책 또는 승인 산출물로 사용하지 않는다.
+
+위 조건이 구현되기 전까지 본 정책의 적용 상태는 다음과 같다.
+- 개발·시험 환경: 파일럿 운영 가능
+- 운영 배포: 보안 담당자의 수동 확인을 포함한 조건부 운영
+- 전사 강제정책: 문서 소유자·승인번호·시행일 확정 후에만 가능
+
+14. 상태값과 게이트 조치의 표준화
+---------------------------------
+
+상태(status)와 조치(action)를 분리하여 저장한다.
+
+상태값:
+- OPEN, TRIAGE, FIX_IN_PROGRESS, FIXED, VERIFIED
+- FALSE_POSITIVE, ACCEPTED_EXCEPTION, REOPENED
+- SCAN_ERROR, SECURITY_HOLD
+
+게이트 조치:
+- ALLOW
+- ALLOW_WITH_TRACKING
+- MANUAL_REVIEW
+- BLOCK_MERGE
+- BLOCK_RELEASE
+- BLOCK_DEPLOY
+- STOP_JOB
+- QUARANTINE
+
+필수 검사 실패는 status=SCAN_ERROR, action=MANUAL_REVIEW 또는
+BLOCK_DEPLOY로 기록한다. 문서와 시스템에서 별도의 불명확한 HOLD 상태를
+사용하지 않는다.
+
+15. 감사로그와 보존 기준
+------------------------
+
+최소 보존기간:
+- 보안판정·배포·승인·예외 로그: 1년
+- SBOM·provenance·아티팩트 검증 결과: 해당 릴리스 수명 + 1년
+- 사고 관련 증거와 자격증명 회전 기록: 사고 종료 후 3년
+- 실제 조직의 법적·계약적 기준이 더 엄격하면 더 긴 기간을 적용한다.
+
+로그에는 다음을 남긴다.
+- repository, branch, commit_sha, pipeline_id
+- artifact_digest, image_digest, policy_version
+- scanner, scanner_version, scan_scope, scanner_status
+- finding_id, final_risk_tier, gate_action, decision_reason
+- approver, approval_reason, exception_expiry
+- remediation_owner, remediation_due, retest_result
+
+Secret 원문, 개인키, 토큰, 민감한 코드 원문은 일반 로그에 저장하지 않는다.
+로그 저장소는 쓰기 권한과 조회 권한을 분리하고, 월 1회 이상 무단 변경 여부를
+점검한다.
+
+16. 시행 전 승인 체크리스트
+---------------------------
+
+- [ ] 문서 소유자·승인번호·시행일이 지정되었다.
+- [ ] 보호된 main commit이 정책 기준 버전으로 지정되었다.
+- [ ] P0/P1 판정권자와 P0 응답시간이 지정되었다.
+- [ ] P0~P4 조치 SLA와 예외 만료가 시스템에 등록되었다.
+- [x] out_of_scope 결과의 운영 배포 처리 방식이 구현되었다.
+- [ ] 필수 검사와 commit_sha·정책 버전의 바인딩 검증이 구현되었다.
+- [ ] 아티팩트 Digest·서명·provenance 검증이 배포 단계에서 동작한다.
+- [ ] Break-glass 승인·만료·사후검증이 기록된다.
+- [ ] 로그 보존기간과 접근권한이 적용되었다.
+- [ ] 수용 테스트가 성공했고 결과가 증빙 저장소에 보관되었다.
+
+17. 시행 전 수용 테스트
+-----------------------
+
+- 활성 운영 Secret이 병합·배포를 차단하고 회전 절차를 호출하는가?
+- 악성 실행 시 해당 Runner와 아티팩트만 격리되는가?
+- P1 결과가 원본 증거를 보존한 뒤 병합을 차단하는가?
+- 필수 검사 실패·타임아웃이 PASS가 아닌 SCAN_ERROR인가?
+- 다른 커밋의 검사 결과를 재사용할 수 없는가?
+- 아티팩트 Digest·서명·provenance 불일치가 단계별로 차단되는가?
+- P2가 승인·담당자·기한 없이 진행되지 않는가?
+- 10~29건과 30건 이상의 신규 P2가 각각 REVIEW와 BLOCK으로 구분되는가?
+- 중복 탐지 결과가 고유 취약점으로 정규화되는가?
+- PR 분할로 누적 기준을 우회할 수 없는가?
+- 예외 만료와 신규 악용정보 발생 시 재평가되는가?
+- 모든 판정의 정책 버전, 증거, 승인자, 사유를 조회할 수 있는가?
+
+18. 승인 및 재검토
+-----------------
+
+본 정책의 P0~P4, 누적 임계값, SLA, Break-glass 조건은 조직 자체 기준이다.
+표준·가이드가 해당 수치나 자동 차단을 직접 강제하는 것으로 표현하지 않는다.
+
+시행 전 파일럿에서 다음을 측정한다.
+- 스캐너별 오탐률과 누락률
+- 평균 검사시간과 장애율
+- 게이트별 차단 건수
+- 예외 건수와 만료 준수율
+- 수정 후 재검사 성공률
+
+파일럿 종료 후 정보보호·개발·운영 책임자가 기준을 승인하고,
+최소 분기 1회 또는 중대한 사고·표준 개정 시 정책을 재검토한다.

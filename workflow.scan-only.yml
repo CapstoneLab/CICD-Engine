@@ -1,0 +1,14 @@
+name: scan-only-workflow
+runtime:
+  type: node
+steps:
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json

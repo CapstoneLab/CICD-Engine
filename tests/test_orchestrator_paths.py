@@ -50,3 +50,33 @@ def test_step_logs_use_configured_data_root(monkeypatch, tmp_path: Path) -> None
     log_text = log_file.read_text(encoding="utf-8")
     assert "[step_status] success" in log_text
     assert "[step_summary] clone complete" in log_text
+
+
+def test_start_is_reported_before_execution_and_finish_after(monkeypatch, tmp_path):
+    orchestrator = LocalOrchestrator(base_dir=tmp_path)
+    paths = prepare_run_paths(tmp_path, "run-order")
+    step = PipelineStep(step_name="test")
+    pipeline = PipelineRun(run_id="run-order", repo_url="https://example.com/repo.git", branch="main", steps=[step])
+    order = []
+    def callback(run, run_dir, value, *args):
+        order.append(value.status)
+        assert value.started_at
+    def execute(**kwargs):
+        order.append("execute")
+        return StepRunResult(status="success", exit_code=0, summary_message="ok")
+    monkeypatch.setattr(orchestrator, "_send_step_callback", callback)
+    monkeypatch.setattr(orchestrator, "_execute_step", execute)
+    orchestrator._run_and_record_step(pipeline, step, pipeline.repo_url, "main", paths["repo_dir"], paths["run_dir"], paths["logs_dir"], None)
+    assert order == ["running", "execute", "success"]
+
+
+def test_skipped_steps_are_reported_without_fake_start(monkeypatch, tmp_path):
+    orchestrator = LocalOrchestrator(base_dir=tmp_path)
+    step = PipelineStep(step_name="deploy")
+    pipeline = PipelineRun(run_id="run-skip", repo_url="https://example.com/repo.git", branch="main", steps=[step])
+    callbacks = []
+    monkeypatch.setattr(orchestrator, "_send_step_callback", lambda *args: callbacks.append(args[2].status))
+    orchestrator._mark_remaining_steps_skipped(pipeline, [step], "previous failure", tmp_path, pipeline.repo_url, "main")
+    assert step.started_at is None
+    assert step.finished_at is not None
+    assert callbacks == ["skipped"]

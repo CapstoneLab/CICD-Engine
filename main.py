@@ -42,6 +42,7 @@ from app.orchestrator import LocalOrchestrator
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Local CI engine MVP")
+    parser.add_argument("--resume-run-id", default="")
     parser.add_argument("--job-id", default="", help="External job id from caller")
     parser.add_argument("--repo", required=True, help="Git repository URL")
     parser.add_argument("--branch", default="main", help="Branch name (default: main)")
@@ -130,6 +131,8 @@ def main() -> int:
         commit_sha=args.commit.strip() or None,
         approved_cwes=_parse_selected_items(args.approved_cwes),
         repo_token=args.repo_token.strip() or None,
+        resume_run_id=args.resume_run_id or None,
+        approval_note=__import__('os').environ.get('CICD_APPROVAL_NOTE'),
     )
     with CallbackLogStreamer(
         callback_url=callback_url,

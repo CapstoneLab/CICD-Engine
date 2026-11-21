@@ -171,18 +171,17 @@ def _is_environment_dependent_node_test_failure(output: str) -> bool:
 
 def _resolve_runner_command(cmd: list[str], package_manager: str, repo_dir: Path, log_file: Path) -> list[str] | None:
     executable = package_manager_executable(package_manager)
-    if is_command_available(executable):
-        return cmd
-
     if package_manager not in {"yarn", "pnpm"}:
-        return None
+        return cmd if is_command_available(executable) else None
 
     corepack = corepack_executable()
     if not is_command_available(corepack):
-        return None
+        return cmd if is_command_available(executable) else None
 
     prepare_cmd = [corepack, "prepare", package_manager_prepare_target(repo_dir, package_manager), "--activate"]
     run_command(command=prepare_cmd, cwd=repo_dir, log_file=log_file)
+    if is_command_available(executable):
+        return cmd
     return wrap_with_corepack(cmd, package_manager)
 
 

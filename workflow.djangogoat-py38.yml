@@ -1,0 +1,54 @@
+name: djangogoat-py38-workflow
+runtime:
+  type: python
+steps:
+  - name: patch-python38-requirements
+    run:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+
+        path = Path("requirements.txt")
+        text = path.read_text()
+        text = text.replace("astroid==1.5.3", "astroid==1.6.6")
+        text = text.replace("pycrypto==2.6.1", "pycryptodome==3.20.0")
+        path.write_text(text)
+
+        api_views = Path("app/views/api/users/views.py")
+        text = api_views.read_text()
+        text = text.replace("import urlparse", "import urllib.parse as urlparse")
+        api_views.write_text(text)
+
+  - name: install-python38
+    run:
+      - bash
+      - -lc
+      - |
+        uv python install 3.8
+        uv venv --seed --python 3.8 .venv
+        .venv/bin/python -m pip install --upgrade "pip<24" setuptools wheel
+        .venv/bin/python -m pip install -r requirements.txt
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    run:
+      - bash
+      - -lc
+      - .venv/bin/python manage.py test
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+
+  - name: deploy
+    uses: deploy

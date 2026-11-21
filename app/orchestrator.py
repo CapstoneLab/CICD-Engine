@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+from app.policy_environment import effective_environment
+from contextlib import nullcontext
+from app.utils.sandbox import sandbox_commands, validate_repository
 import json
 import subprocess
 from pathlib import Path
@@ -10,6 +16,7 @@ from app.constants import RUNTIME_TYPE
 from app.models import PipelineRun, PipelineStep, SecurityFinding, SecuritySummary, StepRunResult, now_iso
 from app.security_policy import (
     SecurityVerdict,
+    normalize_environment,
     evaluate as evaluate_security_policy,
     format_summary,
     is_blocking,
@@ -26,6 +33,8 @@ from app.utils.filesystem import data_root, make_run_id, prepare_run_paths, save
 from app.utils.logger import append_log
 from app.utils.shell import run_command
 from app.workflow import WorkflowStepDefinition, resolve_workflow_definition
+from app.security_catalog import normalize_selected_cwes
+from app.security_workflow import validate_security_workflow, SECURITY_SCANS
 
 
 def _resolve_head_sha(repo_dir: Path) -> str | None:
@@ -57,14 +66,18 @@ class LocalOrchestrator:
         commit_sha: str | None = None,
         approved_cwes: list[str] | None = None,
         repo_token: str | None = None,
+        resume_run_id: str | None = None,
+        approval_note: str | None = None,
     ) -> None:
+        self._resume_run_id = resume_run_id
+        self._approval_note = approval_note
         self.base_dir = base_dir
         self._current_runtime_type: str = RUNTIME_TYPE
         self._callback_url = callback_url
         self._callback_token = callback_token
         self._job_id = job_id
         self._source = source
-        self._environment = environment
+        self._environment = effective_environment(environment)
         # selected_items from the caller (backend job payload / CLI). Takes
         # precedence over any selected_items declared in the workflow yml.
         self._selected_items_override = selected_items
@@ -77,6 +90,9 @@ class LocalOrchestrator:
         # OAuth/PAT token for cloning private repos; masked in logs by run_command
         self._repo_token = (repo_token or "").strip() or None
         self._security_verdict: SecurityVerdict | None = None
+        self._gate_findings: list[dict[str, Any]] = []
+        self._callback_executor = None
+        self._callback_futures = []
 
     def _store_log_file(self, log_file: Path) -> str:
         """Return a portable log reference relative to the persistent data root."""
@@ -89,7 +105,25 @@ class LocalOrchestrator:
             return path
         return data_root(self.base_dir) / path
 
+    def _flush_callbacks(self):
+        for future in self._callback_futures:
+            future.result()
+        self._callback_futures.clear()
+
     def run(self, repo_url: str, branch: str | None, workflow_path: str | None = None) -> tuple[PipelineRun, Path]:
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="stage-report") as executor:
+            self._callback_executor = executor
+            try:
+                result = self._run(repo_url, branch, workflow_path)
+                self._flush_callbacks()
+                return result
+            finally:
+                self._callback_executor = None
+
+    def _run(self, repo_url: str, branch: str | None, workflow_path: str | None = None) -> tuple[PipelineRun, Path]:
+        if self._resume_run_id:
+            from app.resume import resume_run
+            return resume_run(self, repo_url, branch, workflow_path)
         run_id = make_run_id(self.base_dir)
         paths = prepare_run_paths(base_dir=self.base_dir, run_id=run_id)
         run_dir = paths["run_dir"]
@@ -162,6 +196,7 @@ class LocalOrchestrator:
                 base_dir=self.base_dir,
                 workflow_path=workflow_path,
             )
+            validate_security_workflow(workflow.steps)
         except Exception as exc:  # noqa: BLE001
             resolve_step = PipelineStep(step_name="resolve_workflow")
             pipeline_run.steps.append(resolve_step)
@@ -192,7 +227,7 @@ class LocalOrchestrator:
         # selected items precedence: caller override (payload/CLI) > workflow yml > all 16
         self._effective_selected_items = (
             self._selected_items_override
-            if self._selected_items_override
+            if self._selected_items_override is not None
             else workflow.selected_items
         )
 
@@ -229,9 +264,10 @@ class LocalOrchestrator:
 
             if result.status == "failed":
                 has_failure = True
-                if not step.continue_on_failure:
+                if not step.continue_on_failure or step_definition.uses in SECURITY_SCANS:
                     self._mark_remaining_steps_skipped(
                         pipeline_run=pipeline_run,
+                        run_dir=run_dir, repo_url=repo_url, branch=branch,
                         remaining_steps=workflow_steps[workflow_steps.index(step) + 1 :],
                         reason=f"Skipped because previous step failed: {step.step_name}",
                     )
@@ -252,9 +288,13 @@ class LocalOrchestrator:
                     branch=branch,
                 )
                 if gate_result.status == "failed":
+                    if self._security_verdict.requires_approval:
+                        from app.resume import save_checkpoint
+                        save_checkpoint(self, run_dir, repo_dir, workflow)
                     has_failure = True
                     self._mark_remaining_steps_skipped(
                         pipeline_run=pipeline_run,
+                        run_dir=run_dir, repo_url=repo_url, branch=branch,
                         remaining_steps=workflow_steps[workflow_steps.index(step) + 1 :],
                         reason="Skipped because security_gate blocked the pipeline",
                     )
@@ -289,16 +329,20 @@ class LocalOrchestrator:
         step.log_file = self._store_log_file(logs_dir / f"{step.step_name}.log")
         self._write_pipeline_result(run_dir, pipeline_run)
 
+        self._send_step_callback(pipeline_run, run_dir, step, repo_url, branch)
+
         try:
-            result = self._execute_step(
-                step_name=step.step_name,
-                repo_url=repo_url,
-                branch=branch,
-                repo_dir=repo_dir,
-                run_dir=run_dir,
-                logs_dir=logs_dir,
-                step_definition=step_definition,
-            )
+            untrusted = step_definition and (step_definition.kind == "command" or step_definition.uses in {"install", "test", "build"})
+            with sandbox_commands(repo_dir) if untrusted else nullcontext():
+                result = self._execute_step(
+                    step_name=step.step_name,
+                    repo_url=repo_url,
+                    branch=branch,
+                    repo_dir=repo_dir,
+                    run_dir=run_dir,
+                    logs_dir=logs_dir,
+                    step_definition=step_definition,
+                )
         except Exception as exc:  # noqa: BLE001
             result = StepRunResult(
                 status="failed",
@@ -381,15 +425,41 @@ class LocalOrchestrator:
             deployment=self._load_deployment_result(run_dir) if step.step_name == "deploy" else None,
         )
 
-        ok, detail = post_step_callback(
-            callback_url=self._callback_url,
-            callback_token=self._callback_token,
-            payload=payload,
-        )
-        if ok:
-            print(f"  -> step callback sent: {step.step_name}")
+        if self._scanned_commit_sha:
+            payload["step"]["metadata"]["commit_sha"] = self._scanned_commit_sha
+        if step.step_name == "security_gate" and self._security_verdict is not None:
+            payload["step"]["metadata"]["security_gate"] = {
+                "verdict": self._security_verdict.verdict,
+                "requires_approval": self._security_verdict.requires_approval,
+                "scanned_commit_sha": self._scanned_commit_sha,
+                "policy_version": self._security_verdict.policy_version,
+                "findings": self._gate_findings,
+            }
+
+        # Build the immutable payload before returning to the execution thread.
+        # Report in order, while independent execution proceeds without network waits.
+        if self._callback_executor is not None and step.step_name != "deploy":
+            for future in self._callback_futures:
+                if future.done():
+                    future.result()
+            self._callback_futures.append(self._callback_executor.submit(
+                self._deliver_step_callback, payload, run_dir))
         else:
-            print(f"  -> step callback failed: {step.step_name} ({detail})")
+            # Deployment must wait for persisted scan evidence and server approval.
+            self._flush_callbacks()
+            self._deliver_step_callback(payload, run_dir)
+
+    def _deliver_step_callback(self, payload, run_dir):
+        callback_started = time.monotonic()
+        ok, detail = post_step_callback(
+            callback_url=self._callback_url, callback_token=self._callback_token, payload=payload)
+        step = payload["step"]
+        with (run_dir / "callback_timings.jsonl").open("a", encoding="utf-8") as timing_file:
+            timing_file.write(json.dumps({"step": step["step_name"], "status": step["status"],
+                "elapsed_seconds": round(time.monotonic() - callback_started, 3), "ok": ok,
+                "detail": detail}) + "\n")
+        if not ok:
+            raise RuntimeError(f"Step report could not be persisted: {step['step_name']} ({detail})")
 
     @staticmethod
     def _load_deployment_result(run_dir: Path) -> dict[str, Any] | None:
@@ -405,20 +475,23 @@ class LocalOrchestrator:
                 return data
         return None
 
-    @staticmethod
     def _mark_remaining_steps_skipped(
+        self,
         pipeline_run: PipelineRun,
         remaining_steps: list[PipelineStep],
         reason: str,
+        run_dir: Path,
+        repo_url: str,
+        branch: str | None,
     ) -> None:
         for step in remaining_steps:
             if step.status != "pending":
                 continue
             step.status = "skipped"
-            step.started_at = step.started_at or now_iso()
             step.finished_at = now_iso()
             step.exit_code = 0
             step.summary_message = reason
+            self._send_step_callback(pipeline_run, run_dir, step, repo_url, branch)
 
     def _execute_step(
         self,
@@ -442,6 +515,7 @@ class LocalOrchestrator:
                 repo_token=self._repo_token,
             )
             if clone_result.status == "success":
+                validate_repository(repo_dir)
                 self._scanned_commit_sha = _resolve_head_sha(repo_dir)
             return clone_result
 
@@ -595,6 +669,8 @@ class LocalOrchestrator:
             return run_install(repo_dir=project_dir, log_file=log_file, runtime_type=runtime_type)
 
         if uses_name == "lightweight_security_scan":
+            if "CWE-798" not in normalize_selected_cwes(self._effective_selected_items):
+                return StepRunResult(status="skipped", exit_code=0, summary_message="Secret 검사는 이번 실행의 선택 항목에 포함되지 않았습니다")
             report_name = _safe_report_file_name(step_definition.args.get("report_file"), "gitleaks_report.json")
             return run_lightweight_security_scan(
                 repo_dir=repo_dir,
@@ -613,6 +689,7 @@ class LocalOrchestrator:
                 log_file=log_file,
                 report_file=run_dir / report_name,
                 ai_recommendation=ai_recommendation,
+                selected_items=self._effective_selected_items,
             )
 
         if uses_name == "build":
@@ -624,6 +701,9 @@ class LocalOrchestrator:
             )
 
         if uses_name == "deploy":
+            if self._security_verdict is None or is_blocking(self._security_verdict):
+                return StepRunResult(status="failed", exit_code=1,
+                                     summary_message="Deployment requires a successful security gate")
             return run_deploy(
                 repo_dir=project_dir,
                 run_dir=run_dir,
@@ -699,6 +779,12 @@ class LocalOrchestrator:
         repo_url: str,
         branch: str | None,
     ) -> StepRunResult:
+        gate_step = PipelineStep(step_name="security_gate")
+        pipeline_run.steps.append(gate_step)
+        gate_step.log_file = self._store_log_file(logs_dir / "security_gate.log")
+        gate_step.started_at = now_iso()
+        gate_step.status = "running"
+        self._send_step_callback(pipeline_run, run_dir, gate_step, repo_url, branch)
         verdict = evaluate_security_policy(
             findings,
             selected_items=self._effective_selected_items,
@@ -707,11 +793,9 @@ class LocalOrchestrator:
             scanned_commit_sha=self._scanned_commit_sha,
         )
         self._security_verdict = verdict
+        self._gate_findings = [{"severity": f.severity, "cwe": f.cwe, "scanner_name": f.scanner_name.lower(),
+            "in_scope": f.in_scope} for f in findings]
 
-        gate_step = PipelineStep(step_name="security_gate")
-        pipeline_run.steps.append(gate_step)
-        gate_step.log_file = self._store_log_file(logs_dir / "security_gate.log")
-        gate_step.started_at = now_iso()
         log_path = self._resolve_log_file(gate_step.log_file)
         append_log(log_path, f"$ security_gate (environment={verdict.environment})")
         if verdict.scanned_commit_sha:
@@ -723,7 +807,7 @@ class LocalOrchestrator:
         append_log(log_path, f"[score] {verdict.score} ({verdict.gauge_color})")
         append_log(log_path, f"[breakdown] {verdict.score_breakdown}")
         if verdict.requires_approval:
-            append_log(log_path, "[approval] High/엄격정책 — 승인 예외 절차 필요")
+            append_log(log_path, "[approval] High/Medium 개수 기준 — 승인 예외 절차 필요")
         for reason in verdict.block_reasons:
             append_log(log_path, f"[BLOCK] {reason}")
         for reason in verdict.warn_reasons:
@@ -754,11 +838,8 @@ class LocalOrchestrator:
         return result
 
     def _should_skip_step_for_source(self, step_definition: WorkflowStepDefinition) -> bool:
-        if self._source != "mirae":
-            return False
-        if step_definition.kind != "builtin":
-            return False
-        return step_definition.uses == "lightweight_security_scan"
+        # No source may bypass mandatory secret scanning.
+        return False
 
     def _check_required_env(self, repo_dir: Path, logs_dir: Path) -> StepRunResult | None:
         missing, source_files = find_missing_env_keys(repo_dir)

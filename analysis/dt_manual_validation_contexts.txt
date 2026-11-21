@@ -1,0 +1,905 @@
+[MV-001] DT4 critical CWE-78 semgrep yaml.github-actions.security.run-shell-injection.run-shell-injection
+path=.github/workflows/docker-dockerhub.yml line=98 duplicate_of=
+    94            password: ${{ env.password }}
+    95  
+    96        - name: Check if version exists
+    97          id: check_version
+    98>         run: |
+    99            if docker manifest inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+   100              echo "Version ${{ inputs.version }} already exists."
+   101              echo "exists=true" >> $GITHUB_OUTPUT
+   102            else
+
+[MV-002] DT4 critical CWE-78 semgrep yaml.github-actions.security.run-shell-injection.run-shell-injection
+path=.github/workflows/docker-ghcr.yml line=92 duplicate_of=
+    88            password: ${{ env.password }}
+    89  
+    90        - name: Check if version exists
+    91          id: check_version
+    92>         run: |
+    93            IMAGE_TAG="${{ steps.image_vars.outputs.image_tag }}"
+    94            if docker manifest inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+    95              echo "Version ${{ inputs.version }} already exists."
+    96              echo "exists=true" >> "$GITHUB_OUTPUT"
+
+[MV-003] DT4 critical CWE-78 semgrep yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell
+path=.github/workflows/python-reusable.yml line=75 duplicate_of=
+    71  
+    72        - name: Install Poetry
+    73          env:
+    74            POETRY_HOME: ${{ runner.temp }}/poetry
+    75>         run: |
+    76            python -m pip install --upgrade pip
+    77            curl -sSL https://install.python-poetry.org | python -
+    78  
+    79        - name: Add Poetry to PATH (Linux/macOS)
+
+[MV-004] DT4 critical CWE-78 semgrep yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell
+path=.github/workflows/python-reusable.yml line=156 duplicate_of=
+   152  
+   153        - name: Install Poetry
+   154          env:
+   155            POETRY_HOME: ${{ runner.temp }}/poetry
+   156>         run: |
+   157            python -m pip install --upgrade pip
+   158            curl -sSL https://install.python-poetry.org | python -
+   159  
+   160        - name: Add Poetry to PATH
+
+[MV-005] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/conftest.py line=7 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-006] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/test_api.py line=7 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-007] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/test_app_token.py line=10 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-008] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/test_password.py line=8 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-009] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/test_personal_token.py line=13 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-010] DT4 critical CWE-798 gitleaks gitlab-pat
+path=deploy/services/cli/tests/test_services/test_gitlab/test_users.py line=10 duplicate_of=
+safe_source_shape=TEST_TOKEN = <redacted>
+
+[MV-011] DT4 critical CWE-798 semgrep generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
+path=deploy/workspace/dex/localhost/config/dex-config.yaml.example line=20 duplicate_of=
+safe_source_shape=hash = <redacted>
+
+[MV-012] DT4 critical CWE-798 gitleaks generic-api-key
+path=servers/execution/runner/api/workspace.api.http line=9 duplicate_of=
+safe_source_shape=@URLToken = <redacted>
+
+[MV-013] DT4 critical CWE-798 gitleaks generic-api-key
+path=servers/execution/runner/api/workspace.api.http line=10 duplicate_of=
+safe_source_shape=@AuthToken = <redacted>
+
+[MV-014] DT4 critical CWE-798 gitleaks generic-api-key
+path=servers/execution/runner/api/workspace.api.http line=11 duplicate_of=
+safe_source_shape=@WorkspaceCookie = <redacted>
+
+[MV-015] DT4 medium CWE-79 semgrep typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+path=client/src/route/digitaltwins/editor/PreviewTab.tsx line=37 duplicate_of=
+    33          }}
+    34        >
+    35          <div
+    36            dangerouslySetInnerHTML={{
+    37>             __html: renderedMarkdown,
+    38            }}
+    39            style={{
+    40              maxWidth: '100%',
+    41            }}
+
+[MV-016] DT4 medium CWE-79 semgrep typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+path=client/src/route/digitaltwins/manage/DetailsDialog.tsx line=55 duplicate_of=
+    51      <Dialog open={showDialog} maxWidth="md">
+    52        <DialogContent dividers>
+    53          <div
+    54            dangerouslySetInnerHTML={{
+    55>             __html: md.render(asset!.fullDescription),
+    56            }}
+    57            style={{
+    58              maxWidth: '100%',
+    59            }}
+
+[MV-017] DT5 critical CWE-78 semgrep yaml.github-actions.security.run-shell-injection.run-shell-injection
+path=.github/workflows/create-release.yaml line=25 duplicate_of=
+    21            git config --local user.email imodeljs-admin@users.noreply.github.com
+    22            git config --local user.name imodeljs-admin
+    23  
+    24        - name: Create release
+    25>         run: python common/scripts/create_release.py ${{ github.ref_name }}
+    26          env:
+    27            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+[MV-018] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/create_release.py line=34 duplicate_of=
+    30        f.write(stripped)
+    31  
+    32  def getSHAFromTag(tag):
+    33    cmd = ['git', 'rev-list', '-n', '1', tag]
+    34>   proc = subprocess.Popen(" ".join(cmd), stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+    35    sha = proc.communicate()[0].decode("utf-8").strip()
+    36    if len(sha) == 0:
+    37      sys.exit("Could not find commit for tag '{0}'".format(tag))
+    38    return sha
+
+[MV-019] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/create_release.py line=42 duplicate_of=
+    38    return sha
+    39  
+    40  def getCommitMessage(sha):
+    41    cmd = ['git', 'log', '-1', '--format=%s', sha]
+    42>   proc = subprocess.Popen(" ".join(cmd), stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+    43    commitMessage = proc.communicate()[0].decode("utf-8").strip()
+    44    if len(commitMessage) == 0:
+    45      sys.exit("Could not find info for commit " + sha)
+    46  
+
+[MV-020] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/create_release.py line=146 duplicate_of=
+   142      f.write("# Release notes\n\n")
+   143  
+   144      # Determine previous tag and version
+   145      cmd = ['git', 'describe', '--abbrev=0', '--tags', tag + '~1']
+   146>     proc = subprocess.Popen(" ".join(cmd), stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+   147      previousTag = proc.communicate()[0].decode("utf-8").strip()
+   148      if (len(previousTag) == 0):
+   149        sys.exit("Could not find previous tag for " + tag)
+   150  
+
+[MV-021] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/create_release.py line=159 duplicate_of=
+   155      currentSHA = getSHAFromTag(tag)
+   156  
+   157      # Get all commit SHAs between tags
+   158      cmd = ['git', 'rev-list', '--ancestry-path', previousSHA + '..' + currentSHA]
+   159>     proc = subprocess.Popen(" ".join(cmd), stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+   160      # Remove first commit from this list as it will always be a version bump commit
+   161      commits = proc.communicate()[0].decode("utf-8").split()[1:]
+   162  
+   163      # Write commit messages to release notes
+
+[MV-022] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/create_release.py line=184 duplicate_of=
+   180  
+   181    # Create GitHub release using the markdown file
+   182    print("Publishing GitHub release...")
+   183    cmd = ['gh', 'release', 'create', tag, '-F', './' + fileName, '-t', '"v{0}"'.format(currentVer)]
+   184>   proc = subprocess.Popen(" ".join(cmd), stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+   185    proc.wait()
+   186  
+   187  # Validate arguments
+   188  if len(sys.argv) != 2:
+
+[MV-023] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/gather_packages.py line=117 duplicate_of=
+   113    packageName = baseName[:(len(baseName) - len(localVer) - 5)]
+   114    packageName = "@" + packageName.replace("-", "/", 1)
+   115  
+   116    command = "npm view " + packageName + "@" + localVer + " version"
+   117>   proc = subprocess.Popen(command, stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+   118  
+   119    # We are going to assume if a version is provided back from the above call, that this version exists
+   120    # on the server.  Otherwise, it returns an empty string.
+   121    serverVer = proc.communicate()[0]
+
+[MV-024] DT5 critical CWE-78 semgrep python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+path=common/scripts/gather_packages.py line=134 duplicate_of=
+   130      continue
+   131  
+   132    if (latestVer == "" or previousVer == ""):
+   133      command = "npm dist-tag ls " + packageName
+   134>     proc = subprocess.Popen(command, stdin = subprocess.PIPE, stdout = subprocess.PIPE, shell=True)
+   135      distTags = proc.communicate()[0]
+   136      if len(distTags) == 0:
+   137        print("error getting dist-tags")
+   138  
+
+[MV-025] DT5 critical CWE-78 semgrep javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
+path=common/scripts/install-run.js line=795 duplicate_of=
+   791  function _runNpmConfirmSuccess(args, options, commandNameForLogging) {
+   792      const command = getNpmPath();
+   793      let result;
+   794      if (_utilities_executionUtilities__WEBPACK_IMPORTED_MODULE_5__.IS_WINDOWS) {
+   795>         result = node_child_process__WEBPACK_IMPORTED_MODULE_0__.spawnSync(_buildShellCommand(command, args), {
+   796              ...options,
+   797              shell: true,
+   798              windowsVerbatimArguments: false
+   799          });
+
+[MV-026] DT5 critical CWE-78 semgrep javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
+path=common/scripts/install-run.js line=863 duplicate_of=
+   859              cwd: process.cwd(),
+   860              env: process.env
+   861          };
+   862          if (_utilities_executionUtilities__WEBPACK_IMPORTED_MODULE_5__.IS_WINDOWS) {
+   863>             result = node_child_process__WEBPACK_IMPORTED_MODULE_0__.spawnSync(_buildShellCommand(binPath, packageBinArgs), {
+   864                  ...spawnOptions,
+   865                  windowsVerbatimArguments: false,
+   866                  // `npm` bin stubs on Windows are `.cmd` files
+   867                  // Node.js will not directly invoke a `.cmd` file unless `shell` is set to `true`
+
+[MV-027] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=351 duplicate_of=
+safe_source_shape=const retrievedResult = <redacted>
+
+[MV-028] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=360 duplicate_of=
+safe_source_shape=const retrievedResult = <redacted>
+
+[MV-029] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=366 duplicate_of=
+safe_source_shape=const retrievedResult2 = <redacted>
+
+[MV-030] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=396 duplicate_of=
+safe_source_shape=const retrievedResultById = <redacted>
+
+[MV-031] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=415 duplicate_of=
+safe_source_shape=const retrievedResultById = <redacted>
+
+[MV-032] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=461 duplicate_of=
+safe_source_shape=cache.delete({ partialKey = <redacted>
+
+[MV-033] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=464 duplicate_of=
+safe_source_shape=const retrievedResult = <redacted>
+
+[MV-034] DT5 critical CWE-798 gitleaks generic-api-key
+path=core/backend/src/test/ElementLRUCache.test.ts line=481 duplicate_of=
+safe_source_shape=const retrievedResult = <redacted>
+
+[MV-035] DT5 critical CWE-798 gitleaks generic-api-key
+path=full-stack-tests/backend/src/integration/TileUpload.test.ts line=63 duplicate_of=
+safe_source_shape=accessKey = <redacted>
+
+[MV-036] DT5 critical CWE-78 semgrep javascript.lang.security.detect-child-process.detect-child-process
+path=tools/certa/src/utils/SpawnUtils.ts line=22 duplicate_of=
+    18  
+    19    // FIXME: We should be able to remove the useIpc param and just always enable it,
+    20    // but it's not safe to spawn electron with IPC enabled until https://github.com/electron/electron/issues/17044 is fixed.
+    21    const stdio: StdioOptions = (useIpc) ? ["ipc", "pipe", "pipe"] : "pipe";
+    22>   const childProcess = spawn(command, args, { stdio, cwd: process.cwd(), env: childEnv });
+    23    // For some reason, spawning using `stdio: "inherit"` results in some garbled output (for example, "✓" is printed as "ΓêÜ").
+    24    // Using `stdio: "pipe"` and manually redirecting the output here seems to work though.
+    25    childProcess.stdout?.on("data", (data: any) => process.stdout.write(data));
+    26    childProcess.stderr?.on("data", (data: any) => process.stderr.write(data));
+
+[MV-037] DT5 critical CWE-78 semgrep javascript.aws-lambda.security.detect-child-process.detect-child-process
+path=tools/internal/scripts/build-cjs.js line=38 duplicate_of=
+    34      const outDir = getOutputDir(tsconfigPath);
+    35      // overwrite package.json with the new type
+    36      fs.writeFileSync(packageJsonPath, JSON.stringify({ ...packageJson, type: "commonjs" }));
+    37      // transpile
+    38>     execSync(`tsc -p ${tsconfigPath}`, { stdio: "inherit", shell: true });
+    39      // emit module type to out dir
+    40      fs.writeFileSync(path.join(outDir, "package.json"), `{ "type": "commonjs" }`);
+    41    } catch (e) {
+    42      console.error(e);
+
+[MV-038] DT5 critical CWE-78 semgrep javascript.lang.security.detect-child-process.detect-child-process
+path=tools/internal/scripts/build-cjs.js line=38 duplicate_of=MV-037
+    34      const outDir = getOutputDir(tsconfigPath);
+    35      // overwrite package.json with the new type
+    36      fs.writeFileSync(packageJsonPath, JSON.stringify({ ...packageJson, type: "commonjs" }));
+    37      // transpile
+    38>     execSync(`tsc -p ${tsconfigPath}`, { stdio: "inherit", shell: true });
+    39      // emit module type to out dir
+    40      fs.writeFileSync(path.join(outDir, "package.json"), `{ "type": "commonjs" }`);
+    41    } catch (e) {
+    42      console.error(e);
+
+[MV-039] DT5 critical CWE-78 semgrep javascript.lang.security.detect-child-process.detect-child-process
+path=tools/internal/scripts/build-cjs.js line=50 duplicate_of=
+    46    }
+    47  };
+    48  
+    49  function getOutputDir(tsconfigPath) {
+    50>   const res = execSync(`tsc -p ${tsconfigPath} --showConfig`, { shell: true });
+    51    const config = JSON.parse(res.toString());
+    52    const outDir = config.compilerOptions.outDir;
+    53    if (!outDir) {
+    54      console.error(`No "outDir" found in "${tsconfigPath}`);
+
+[MV-040] DT5 critical CWE-798 gitleaks generic-api-key
+path=utils/workspace-editor/README.md line=67 duplicate_of=
+safe_source_shape=set WORKSPACE_EDITOR_ACCESS_TOKEN = <redacted>
+
+[MV-041] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=core/backend/src/ChangeSummaryManager.ts line=424 duplicate_of=
+   420      const changesets = await IModelHost[_hubAccess].queryChangesets({ accessToken, iModelId, range });
+   421  
+   422      // Setup a temporary briefcase to help with extracting change summaries
+   423      const briefcasePath = BriefcaseManager.getBriefcaseBasePath(iModelId);
+   424>     const fileName: string = path.join(briefcasePath, `ChangeSummaryBriefcase.bim`);
+   425      if (IModelJsFs.existsSync(fileName))
+   426        IModelJsFs.removeSync(fileName);
+   427  
+   428      let iModel: BriefcaseDb | undefined;
+
+[MV-042] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=core/ecschema-locaters/src/SchemaFileLocater.ts line=141 duplicate_of=
+   137     * @param matchType The SchemaMatchType to use when comparing the desiredKey and the keys found during the search.
+   138     * @param format The type of file that the schema key refers to. json or xml
+   139     */
+   140    private addCandidateNoExtSchemaKey(foundFiles: FileSchemaKey[], schemaPath: string, schemaName: string, desiredKey: SchemaKey, matchType: SchemaMatchType, format: string) {
+   141>     const fullPath = path.join(schemaPath, `${schemaName}.ecschema.${format}`);
+   142  
+   143      // If the file does not exist, end
+   144      if (!fs.existsSync(fullPath))
+   145        return;
+
+[MV-043] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=core/ecschema-locaters/src/SchemaXmlFileLocater.ts line=144 duplicate_of=
+   140     */
+   141    public constructor(knownBackendAssetsDir: string) {
+   142      super();
+   143  
+   144>     const ecSchemaDir = path.join(knownBackendAssetsDir, "ECSchemas");
+   145      if (!fs.existsSync(ecSchemaDir))
+   146        throw new Error(`The directory ${ecSchemaDir} containing standard schemas does not exist.`);
+   147  
+   148      // Pre-defined set of standard schema search paths
+
+[MV-044] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=full-stack-tests/backend/src/HubUtility.ts line=158 duplicate_of=
+   154      const changesetDir = path.join(downloadDir, "changesets");
+   155      const changesets = await HubUtility.downloadChangesets(accessToken, changesetDir, iModelId);
+   156  
+   157      const changesetsJsonStr = JSON.stringify(changesets, undefined, 4);
+   158>     const changesetsJsonPathname = path.join(downloadDir, "changesets.json");
+   159      IModelJsFs.writeFileSync(changesetsJsonPathname, changesetsJsonStr);
+   160    }
+   161  
+   162    /** Download an IModel's seed files and change sets from the Hub.
+
+[MV-045] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=full-stack-tests/backend/src/HubUtility.ts line=243 duplicate_of=
+   239      if (seedFileNames.length !== 1) {
+   240        throw new Error(`Expected to find one and only one seed file in: ${seedFileDir}`);
+   241      }
+   242      const seedFileName = seedFileNames[0];
+   243>     const seedPathname = path.join(seedFileDir, seedFileName);
+   244      return seedPathname;
+   245    }
+   246  
+   247    /** Reads change sets from disk and expects a standard structure of how the folder is organized */
+
+[MV-046] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=full-stack-tests/backend/src/perftest/PropertiesImpact.test.ts line=286 duplicate_of=
+   282  
+   283    function createSchema(indexCount: number, perClass: boolean = false): string {
+   284      let schemaPath = "";
+   285      if (perClass)
+   286>       schemaPath = path.join(outDir, `TestIndexSchema-PerClass${indexCount}.01.00.00.ecschema.xml`);
+   287      else
+   288        schemaPath = path.join(outDir, `TestIndexSchema-${indexCount}.01.00.00.ecschema.xml`);
+   289      if (!IModelJsFs.existsSync(schemaPath)) {
+   290        let sxml = `<?xml version="1.0" encoding="UTF-8"?>
+
+[MV-047] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=full-stack-tests/backend/src/perftest/SchemaLoader.test.ts line=57 duplicate_of=
+    53      return path.join(KnownLocations.nativeAssetsDir, "ECSchemas", domain, schemaFileName);
+    54    }
+    55  
+    56    function getSchemaPathFromPackage(packageName: string, schemaFileName: string): string {
+    57>     const schemaFile = path.join(__dirname, "..", "..", "..", "node_modules", "@bentley", packageName, schemaFileName);
+    58      return schemaFile;
+    59    }
+    60  
+    61    function getBisSchemaPaths(): string[] {
+
+[MV-048] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=test-apps/display-performance-test-app/src/backend/CsvWriter.ts line=24 duplicate_of=
+    20    }
+    21  }
+    22  
+    23  export function createNewCsvFile(filePath: string, fileName: string, data: Map<string, number | string>): boolean {
+    24>   const file = path.join(filePath, fileName);
+    25    if (!IModelJsFs.existsSync(filePath))
+    26      createFilePath(filePath);
+    27  
+    28    if (!IModelJsFs.existsSync(file)) {
+
+[MV-049] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=test-apps/display-test-app/src/backend/Backend.ts line=86 duplicate_of=
+    82    public override async writeExternalCameraPaths(bimFileName: string, cameraPaths: string): Promise<void> {
+    83      if (ProcessDetector.isMobileAppBackend && process.env.DOCS) {
+    84        // Used to set a writeable directory on an iOS or Android device.
+    85        const docPath = process.env.DOCS;
+    86>       bimFileName = path.join(docPath, bimFileName);
+    87      }
+    88  
+    89      const cameraPathsFileName = this.createCameraPathsFilename(bimFileName);
+    90      return this.writeExternalFile(cameraPathsFileName, cameraPaths);
+
+[MV-050] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=tools/internal/scripts/linkextensions.js line=34 duplicate_of=
+    30    //go through every testApp specified in the arguments
+    31    for (let testApp of argv.testApp) {
+    32  
+    33      //get path to test-app directories
+    34>     const destRoot = path.resolve(rootDir, "test-apps", testApp)
+    35      if (!fs.existsSync(destRoot)) {
+    36        console.log(`Cannot find the root directory of the destination: ${destRoot}`)
+    37        return;
+    38      }
+
+[MV-051] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=utils/workspace-editor/src/WorkspaceEditor.ts line=304 duplicate_of=
+   300  /** Replace files in a WorkspaceDb. */
+   301  async function replaceResource(args: AddFileOptions) {
+   302    return editWorkspace(args, async (wsFile, args) => {
+   303      globSync(args.files, { cwd: args.root ?? process.cwd(), nodir: true, windowsPathsNoEscape: true }).forEach((filePath) => {
+   304>       const file = args.root ? join(args.root, filePath) : filePath;
+   305        if (!IModelJsFs.existsSync(file))
+   306          throw new Error(`file [${file}] does not exist`);
+   307        const name = args.rscName ?? filePath;
+   308        try {
+
+[MV-052] DT5 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=utils/workspace-editor/src/WorkspaceEditor.ts line=402 duplicate_of=
+   398    const container = getCloudContainer(args);
+   399    if ("" === extname(args.localFileName))
+   400      args.localFileName = `${args.localFileName}.${workspaceDbFileExt}`;
+   401    if (!IModelJsFs.existsSync(args.localFileName))
+   402>     args.localFileName = join(args.directory ?? IModelHost.appWorkspace.containerDir, args.localFileName);
+   403  
+   404    await CloudSqlite.withWriteLock({ ...args, container }, async () => {
+   405      await performTransfer(container, "upload", args);
+   406    });
+
+[MV-053] DT6 critical CWE-78 semgrep javascript.lang.security.detect-child-process.detect-child-process
+path=beachball.config.js line=58 duplicate_of=
+    54      return undefined;
+    55    }
+    56  
+    57    // %s = subject
+    58>   const commitMessage = execSync(`git log -1 --pretty=format:%s ${commitHash}`, { encoding: "utf-8" });
+    59    // match PR links
+    60    const match = commitMessage.match(prRegex);
+    61    return match?.[1];
+    62  }
+
+[MV-054] DT6 critical CWE-78 semgrep javascript.lang.security.detect-child-process.detect-child-process
+path=scripts/run-e2e-with-docker.js line=13 duplicate_of=
+     9  const dockerContainerName = `${dockerImageName.replace("/", ".")}-container`;
+    10  
+    11  const execute = (command, args = []) =>
+    12    new Promise((resolve, reject) => {
+    13>     const spawnProcess = spawn(command, args, { stdio: "inherit" });
+    14      spawnProcess.on("close", (status) => {
+    15        if (status !== 0) {
+    16          console.error(`Command failed with code ${status}`);
+    17          return reject(new Error(`Command failed: ${command} ${args.join(" ")}`));
+
+[MV-055] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=apps/learning-snippets/scripts/linkWorkspaceDeps.cjs line=86 duplicate_of=
+    82  }
+    83  
+    84  function getSourceLibPath(packageDir, distDirName) {
+    85    const sourcePath = path.resolve(__dirname, "../../../packages/itwin", packageDir);
+    86>   return path.resolve(sourcePath, distDirName ?? "lib");
+    87  }
+
+[MV-056] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=apps/learning-snippets/scripts/linkWorkspaceDeps.cjs line=86 duplicate_of=MV-055
+    82  }
+    83  
+    84  function getSourceLibPath(packageDir, distDirName) {
+    85    const sourcePath = path.resolve(__dirname, "../../../packages/itwin", packageDir);
+    86>   return path.resolve(sourcePath, distDirName ?? "lib");
+    87  }
+
+[MV-057] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=apps/performance-tests/scripts/linkWorkspaceDeps.cjs line=73 duplicate_of=
+    69  
+    70  function getTargetLibPath(packageName, distDirName) {
+    71    const packagePath = path.resolve(__dirname, "../node_modules", packageName);
+    72    const realPath = fs.realpathSync(packagePath);
+    73>   return path.resolve(realPath, distDirName ?? "lib");
+    74  }
+    75  
+    76  function getSourceLibPath(packageDir, distDirName) {
+    77    const sourcePath = path.resolve(__dirname, "../../../packages/itwin", packageDir);
+
+[MV-058] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=apps/performance-tests/scripts/linkWorkspaceDeps.cjs line=77 duplicate_of=
+    73    return path.resolve(realPath, distDirName ?? "lib");
+    74  }
+    75  
+    76  function getSourceLibPath(packageDir, distDirName) {
+    77>   const sourcePath = path.resolve(__dirname, "../../../packages/itwin", packageDir);
+    78    return path.resolve(sourcePath, distDirName ?? "lib");
+    79  }
+
+[MV-059] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=apps/test-viewer/scripts/linkWorkspaceDeps.cjs line=105 duplicate_of=
+   101  
+   102  function getTargetLibPath(packageName, distDirName) {
+   103    const packagePath = path.resolve(__dirname, "../node_modules", packageName);
+   104    const realPath = fs.realpathSync(packagePath);
+   105>   return path.resolve(realPath, distDirName ?? "lib");
+   106  }
+   107  
+   108  function getSourceLibPath(packageDir, distDirName) {
+   109    const sourcePath = path.resolve(__dirname, "../../../packages/itwin", packageDir);
+
+[MV-060] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=packages/itwin/test-utilities/src/test-utilities/PathUtils.ts line=42 duplicate_of=
+    38    }
+    39  
+    40    const pieceLength = allowedFileNameLength / 2;
+    41    const shortenedName = `${name.slice(0, Math.ceil(pieceLength))}...${name.slice(Math.ceil(name.length - pieceLength))}`;
+    42>   return path.join(dir, `${shortenedName}${ext}`);
+    43  }
+
+[MV-061] DT6 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=scripts/updateExtractions.js line=52 duplicate_of=
+    48    console.log(`Processing target "${target}"...`);
+    49    const targetStat = fs.lstatSync(target);
+    50    if (targetStat.isDirectory(target)) {
+    51      fs.readdirSync(target, { recursive: true }).forEach((fileName) => {
+    52>       handleTargetFile(path.join(target, fileName));
+    53      });
+    54    } else if (targetStat.isFile(target)) {
+    55      handleTargetFile(target);
+    56    } else {
+
+[MV-062] DT7 critical CWE-798 gitleaks generic-api-key
+path=src/lib/env.ts line=11 duplicate_of=
+safe_source_shape=streamKey = <redacted>
+
+[MV-063] DT8 critical CWE-798 gitleaks generic-api-key
+path=src/lib/config.ts line=19 duplicate_of=
+safe_source_shape=streamKey = <redacted>
+
+[MV-064] DT9 critical CWE-798 gitleaks generic-api-key
+path=src/lib/env.ts line=11 duplicate_of=
+safe_source_shape=streamKey = <redacted>
+
+[MV-065] DT10 critical CWE-78 semgrep yaml.github-actions.security.run-shell-injection.run-shell-injection
+path=.github/workflows/build-manager-image.yml line=43 duplicate_of=
+    39  
+    40        - name: Parse tags and evaluate conditions
+    41          id: meta
+    42          shell: bash
+    43>         run: |
+    44            COMMIT_SHA_SHORT=$(git rev-parse --short HEAD)
+    45  
+    46            FORMATTED_TAGS="openremote/manager:$COMMIT_SHA_SHORT"
+    47            FIRST_TAG="openremote/manager:$COMMIT_SHA_SHORT"
+
+[MV-066] DT10 critical CWE-78 semgrep yaml.github-actions.security.run-shell-injection.run-shell-injection
+path=.github/workflows/publish-npm.yml line=40 duplicate_of=
+    36  
+    37        - run: yarn --immutable
+    38  
+    39        - name: Publish to NPM
+    40>         run: |
+    41            echo 'npmRegistries:' >> .yarnrc.yml
+    42            echo '  "https://registry.yarnpkg.com":' >> .yarnrc.yml
+    43            echo "    npmAuthToken: ${{ secrets.NPM_AUTH_TOKEN }}" >> .yarnrc.yml
+    44            yarn workspaces foreach --all --no-private --topological npm publish --tag ${{ inputs.tag }}
+
+[MV-067] DT10 critical CWE-798 gitleaks kubernetes-secret-yaml
+path=kubernetes/openremote-secret.yaml line=2 duplicate_of=
+safe_source_shape=kind = <redacted>
+
+[MV-068] DT10 critical CWE-798 gitleaks kubernetes-secret-yaml
+path=kubernetes/or-setup/templates/openremote-secret.yaml line=2 duplicate_of=
+safe_source_shape=kind = <redacted>
+
+[MV-069] DT10 critical CWE-798 gitleaks private-key
+path=setup/src/load1/resources/org/openremote/setup/load1/ca.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-070] DT10 critical CWE-798 semgrep generic.secrets.security.detected-private-key.detected-private-key
+path=setup/src/load1/resources/org/openremote/setup/load1/ca.key line=1 duplicate_of=MV-069
+safe_source_shape=<private-key PEM marker>
+
+[MV-071] DT10 critical CWE-798 gitleaks generic-api-key
+path=test/src/test/groovy/org/openremote/test/gateway/GatewayTest.groovy line=1327 duplicate_of=
+safe_source_shape=def gatewayClientSecret = <redacted>
+
+[MV-072] DT10 critical CWE-798 gitleaks generic-api-key
+path=test/src/test/groovy/org/openremote/test/protocol/lorawan/chirpstack/ChirpStackTest.groovy line=92 duplicate_of=
+safe_source_shape=static final String API_KEY = <redacted>
+
+[MV-073] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/ca.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-074] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/ca_forged.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-075] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/device1.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-076] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/device2.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-077] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/device3.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-078] DT10 critical CWE-798 gitleaks private-key
+path=test/src/test/resources/org/openremote/test/provisioning/device4.key line=1 duplicate_of=
+safe_source_shape=<private-key PEM marker>
+
+[MV-079] DT10 critical CWE-78 semgrep javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
+path=ui/util/cli.js line=34 duplicate_of=
+    30  
+    31      // Do watch
+    32      let cwd = getGradleDirectory();
+    33      console.log("Watching model for changes...");
+    34>     const child = spawn((process.platform === "win32" ? "gradlew" : "./gradlew"), ["-t", "modelWatch"], {
+    35          cwd: cwd,
+    36          shell: true
+    37      });
+    38      child.stdout.removeAllListeners("data");
+
+[MV-080] DT10 critical CWE-78 semgrep javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
+path=ui/util/cli.js line=52 duplicate_of=
+    48  
+    49      // Do build
+    50      let cwd = getGradleDirectory();
+    51      console.log("Running gradlew modelBuild task in " + cwd + " ...");
+    52>     const gradleModelWatch = spawnSync((process.platform === "win32" ? "gradlew" : "./gradlew"), ["modelWatch"], {
+    53          cwd: cwd,
+    54          shell: true
+    55      });
+    56      console.log("gradlew modelWatch finished! Status = " + gradleModelWatch.status);
+
+[MV-081] DT10 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=manager/src/main/java/org/openremote/manager/event/ClientEventService.java line=124 duplicate_of=
+   120      }
+   121  
+   122      public static final int PRIORITY = ManagerWebService.PRIORITY - 200;
+   123      protected static final int MAX_QUEUE_SIZE = 100;
+   124>     protected static final String WEBSOCKET_URI = "undertow://ws://0.0.0.0/websocket/events?fireWebSocketChannelEvents=true&sendTimeout=15000"; // Host is not used as existing undertow instance is utilised
+   125      protected static final System.Logger LOG = System.getLogger(ClientEventService.class.getName());
+   126      protected static final String PUBLISH_QUEUE = "direct://ClientPublishQueue";
+   127  
+   128      /**
+
+[MV-082] DT10 medium CWE-79 semgrep javascript.express.security.audit.xss.ejs.var-in-script-src.var-in-script-src
+path=ui/demo/demo-core/index.html line=15 duplicate_of=
+    11  <br />
+    12  <br />
+    13  <div id="asset"></div>
+    14  </body>
+    15> <script src="<%= htmlWebpackPlugin.files.js[0] %>"></script>
+    16  <or-demo id="or-demo"></or-demo>
+    17  </html>
+
+[MV-083] DT10 medium CWE-79 semgrep javascript.express.security.audit.xss.ejs.var-in-script-src.var-in-script-src
+path=ui/demo/demo-rest/index.html line=11 duplicate_of=
+     7      <title>Demo</title>
+     8  </head>
+     9  <body>
+    10  </body>
+    11> <script src="<%= htmlWebpackPlugin.files.js[0] %>"></script>
+    12  </html>
+
+[MV-084] DT10 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=ui/util/webpack.util.js line=184 duplicate_of=
+   180              }
+   181          );
+   182      }
+   183      //Check if .appignore file exists
+   184>     if (fs.existsSync(path.join(dirname, ".appignore"))) {
+   185        patterns.push(
+   186          {
+   187            from: ".appignore",
+   188            to: ".appignore",
+
+[MV-085] DT11 critical CWE-798 gitleaks generic-api-key
+path=docker-compose.yml line=43 duplicate_of=
+safe_source_shape=- FASTFLOOD_API_KEY = <redacted>
+
+[MV-086] DT11 critical CWE-798 semgrep generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+path=docker-compose.yml line=43 duplicate_of=MV-085
+safe_source_shape=- FASTFLOOD_API_KEY = <redacted>
+
+[MV-087] DT11 critical CWE-798 gitleaks generic-api-key
+path=geotiff-proxy-server/server.js line=122 duplicate_of=
+safe_source_shape=const API_KEY = <redacted>
+
+[MV-088] DT11 critical CWE-798 semgrep generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+path=geotiff-proxy-server/server.js line=122 duplicate_of=MV-087
+safe_source_shape=const API_KEY = <redacted>
+
+[MV-089] DT11 critical CWE-798 gitleaks generic-api-key
+path=src/app/services/FastFloodAPI.ts line=85 duplicate_of=
+safe_source_shape=private static readonly API_KEY = <redacted>
+
+[MV-090] DT11 critical CWE-798 semgrep generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+path=src/app/services/FastFloodAPI.ts line=85 duplicate_of=MV-089
+safe_source_shape=private static readonly API_KEY = <redacted>
+
+[MV-091] DT11 medium CWE-79 semgrep javascript.express.security.audit.xss.direct-response-write.direct-response-write
+path=geotiff-proxy-server/server.js line=105 duplicate_of=
+   101              'Access-Control-Allow-Headers': 'Content-Type'
+   102          });
+   103  
+   104          // Send the binary data
+   105>         res.send(buffer);
+   106  
+   107      } catch (error) {
+   108          console.error(`❌ Proxy error:`, error);
+   109          
+
+[MV-092] DT11 medium CWE-79 semgrep javascript.express.security.audit.xss.direct-response-write.direct-response-write
+path=proxy-server.js line=61 duplicate_of=
+    57              'Access-Control-Allow-Methods': 'GET',
+    58              'Access-Control-Allow-Headers': 'Content-Type'
+    59          });
+    60  
+    61>         res.send(buffer);
+    62  
+    63      } catch (error) {
+    64          console.error(`❌ Proxy error:`, error);
+    65          res.status(500).json({ 
+
+[MV-093] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=docs/mqtt-production.md line=20 duplicate_of=
+    16  | Plant ID | `plant-01` |
+    17  
+    18  Click **`Test & Connect →`** — the dashboard connects live and shows the result. Config is saved in `localStorage` and restored on every page reload.
+    19  
+    20> > **Note:** The dashboard only supports `ws://` and `wss://` (WebSocket). For installations with mutual TLS (client certificates), you need an intermediate proxy — see the TLS section below.
+    21  
+    22  ---
+    23  
+    24  ## Standard MQTT format
+
+[MV-094] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=docs/mqtt-production.md line=182 duplicate_of=
+   178  ## Brokers for testing
+   179  
+   180  | Broker | URL | Notes |
+   181  |---|---|---|
+   182> | EMQX public | `ws://broker.emqx.io:8083/mqtt` | Free, no auth, shared |
+   183  | EMQX public (TLS) | `wss://broker.emqx.io:8084/mqtt` | Free, no auth, shared |
+   184  | HiveMQ Cloud | `wss://your-cluster.s1.eu.hivemq.cloud:8884/mqtt` | Free tier, auth required |
+   185  | HiveMQ public | `wss://broker.hivemq.com:8884/mqtt` | Free, no auth, shared |
+   186  | Mosquitto (local) | `ws://localhost:9001/mqtt` | Requires WebSocket listener |
+
+[MV-095] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=product.md line=172 duplicate_of=
+   168  **Unknown ID policy:** if `SceneUpdater` receives a sensor ID that doesn't exist in `SensorSceneMap` (sensor added in fork, MQTT topic with different name), it emits a `console.warn` in dev mode and ignores it silently in production. It never throws an error that breaks the update loop. This policy is explicitly documented so forks know what to expect.
+   169  
+   170  ### Decision 4 — Honest MQTTAdapter limits
+   171  
+   172> The `MQTTAdapter` works with brokers that support **MQTT over WebSocket** (`ws://` or `wss://` with simple credentials). For the demo, `broker.emqx.io:8083` can be used without extra config.
+   173  
+   174  **What it does NOT support** (explicitly documented in README): mutual TLS with client certificates, which is the standard in real industrial PLCs. Browsers cannot do mutual TLS in WebSocket. For that case, the user needs a proxy or gateway — outside the scope of the starter kit.
+   175  
+   176  **Observable MQTTAdapter lifecycle ★**
+
+[MV-096] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=readme.md line=108 duplicate_of=
+   104  ### Sparkplug B
+   105  
+   106  If your devices use Sparkplug B (Ignition, Cirrus Link, modern PLCs), the adapter detects it automatically from the topic pattern `spBv1.0/...` and decodes the Protobuf payload natively. No extra libraries, no configuration needed.
+   107  
+   108> > Works with `ws://` and `wss://` brokers. For mutual TLS, you need a proxy — see [docs/mqtt-production.md](docs/mqtt-production.md).
+   109  
+   110  Full setup guide: [docs/mqtt-production.md](docs/mqtt-production.md)
+   111  
+   112  ---
+
+[MV-097] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=src/ui/ConfigModal.js line=183 duplicate_of=
+   179              <label class="cfg-label" for="cfg-broker">Broker URL</label>
+   180              <input class="cfg-input" id="cfg-broker" type="text"
+   181                placeholder="wss://your-broker:8884/mqtt"
+   182                autocomplete="off" spellcheck="false" />
+   183>             <span class="cfg-hint">Use <code>wss://</code> for cloud brokers (HiveMQ, EMQX). Use <code>ws://</code> for local.</span>
+   184            </div>
+   185  
+   186            <div class="cfg-row">
+   187              <div class="cfg-field">
+
+[MV-098] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=src/ui/ConfigModal.js line=374 duplicate_of=
+   370        this._setStatus('error', 'Broker URL is required');
+   371        document.getElementById('cfg-broker').focus();
+   372        return;
+   373      }
+   374>     if (!brokerUrl.startsWith('ws://') && !brokerUrl.startsWith('wss://')) {
+   375        this._setStatus('error', 'URL must start with ws:// or wss://');
+   376        document.getElementById('cfg-broker').focus();
+   377        return;
+   378      }
+
+[MV-099] DT13 high CWE-319 semgrep javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+path=src/ui/ConfigModal.js line=375 duplicate_of=
+   371        document.getElementById('cfg-broker').focus();
+   372        return;
+   373      }
+   374      if (!brokerUrl.startsWith('ws://') && !brokerUrl.startsWith('wss://')) {
+   375>       this._setStatus('error', 'URL must start with ws:// or wss://');
+   376        document.getElementById('cfg-broker').focus();
+   377        return;
+   378      }
+   379  
+
+[MV-100] DT14 critical CWE-798 gitleaks generic-api-key
+path=meteor3d-server/src/services/baseMapGenerator.js line=12 duplicate_of=
+safe_source_shape=const TIANDITU_TOKEN = <redacted>
+
+[MV-101] DT14 critical CWE-798 gitleaks generic-api-key
+path=packages/core/src/TileMapManager.js line=16 duplicate_of=
+safe_source_shape=this.token = <redacted>
+
+[MV-102] DT14 critical CWE-798 gitleaks generic-api-key
+path=packages/scene-editor/src/components/MapSelectorDialog.vue line=113 duplicate_of=
+safe_source_shape=const TIANDITU_TOKEN = <redacted>
+
+[MV-103] DT14 critical CWE-798 gitleaks jwt
+path=packages/scene-editor/src/views/TestView.vue line=169 duplicate_of=
+safe_source_shape=<JWT redacted>
+
+[MV-104] DT14 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=meteor3d-server/src/controllers/assetController.js line=629 duplicate_of=
+   625          const thumbnailPath = `/uploads/thumbnails/${req.file.filename}`;
+   626  
+   627          // 如果已有旧缩略图，删除旧文件
+   628          if (asset.thumbnail) {
+   629>             const oldThumbnailPath = path.join(__dirname, '../../uploads/thumbnails', path.basename(asset.thumbnail));
+   630              if (fs.existsSync(oldThumbnailPath)) {
+   631                  fs.unlinkSync(oldThumbnailPath);
+   632              }
+   633          }
+
+[MV-105] DT14 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=meteor3d-server/src/pipeline/processors/formatConverter.js line=33 duplicate_of=
+    29      const relativeOutputPath = path.join(outputDir, `${context.assetId}_${baseName}.glb`);
+    30  
+    31      // 绝对路径用于命令执行
+    32      const absoluteInputPath = path.resolve(context.inputPath);
+    33>     const absoluteOutputPath = path.resolve(relativeOutputPath);
+    34      const absoluteOutputDir = path.dirname(absoluteOutputPath);
+    35  
+    36      // 确保输出目录存在
+    37      if (!fs.existsSync(absoluteOutputDir)) {
+
+[MV-106] DT14 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=meteor3d-server/src/pipeline/processors/zipExtractor.js line=27 duplicate_of=
+    23  
+    24      const files = fs.readdirSync(dirPath);
+    25  
+    26      for (const file of files) {
+    27>         const fullPath = path.join(dirPath, file);
+    28  
+    29          // 跳过不存在的文件（可能已被删除）
+    30          if (!fs.existsSync(fullPath)) {
+    31              continue;
+
+[MV-107] DT14 medium CWE-22 semgrep javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+path=meteor3d-server/src/pipeline/processors/zipExtractor.js line=46 duplicate_of=
+    42              try {
+    43                  const nestedZip = new AdmZip(fullPath);
+    44                  const nestedOutputDir = path.join(
+    45                      path.dirname(fullPath),
+    46>                     path.basename(file, '.zip')
+    47                  );
+    48  
+    49                  fs.mkdirSync(nestedOutputDir, { recursive: true });
+    50                  nestedZip.extractAllTo(nestedOutputDir, true);

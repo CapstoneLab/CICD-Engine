@@ -1,0 +1,9 @@
+﻿cwe,cwe_total_tp,cwe_total_fp,cwe_total_fn,rule_id,rule_tp_unique_tests,rule_fp_same_cwe_unique_tests,rule_fp_cross_cwe_unique_tests
+CWE-22,120,106,13,java.lang.security.httpservlet-path-traversal.httpservlet-path-traversal,120,106,0
+CWE-78,117,109,9,java.lang.security.audit.tainted-cmd-from-http-request.tainted-cmd-from-http-request,112,96,0
+CWE-78,117,109,9,java.lang.security.audit.command-injection-process-builder.command-injection-process-builder,33,30,0
+CWE-79,202,108,44,java.lang.security.audit.xss.no-direct-response-writer.no-direct-response-writer,202,108,146
+CWE-89,253,170,19,java.lang.security.audit.sqli.tainted-sql-from-http-request.tainted-sql-from-http-request,234,143,0
+CWE-89,253,170,19,java.lang.security.audit.sqli.jdbc-sqli.jdbc-sqli,97,81,0
+CWE-327,0,0,130,(no matching in-scope rule),0,0,0
+CWE-614,36,0,0,java.lang.security.audit.cookie-missing-secure-flag.cookie-missing-secure-flag,36,0,0

@@ -1,0 +1,55 @@
+name: vulnerable-flask-python27-workflow
+runtime:
+  type: python
+steps:
+  - name: install
+    cwd: app
+    run:
+      - bash
+      - -lc
+      - |
+        grep -vi '^mysql-python==' requirements.txt > requirements.ci-py27.txt
+        docker run --rm -v "$PWD:/repo" -w /repo python:2.7-buster bash -lc '
+          python -m pip install --upgrade "pip<21" "setuptools<45" wheel virtualenv
+          python -m virtualenv .venv-py27
+          .venv-py27/bin/python -m pip install --upgrade "pip<21" "setuptools<45" wheel
+          .venv-py27/bin/python -m pip install -r requirements.ci-py27.txt
+        '
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    cwd: app
+    run:
+      - bash
+      - -lc
+      - |
+        docker run --rm -v "$PWD:/repo" -w /repo python:2.7-buster bash -lc '
+          APP_PORT=5050 .venv-py27/bin/python app.py > /tmp/vulnerable-flask.log 2>&1 &
+          pid=$!
+          ok=0
+          for i in 1 2 3 4 5 6 7 8; do
+            sleep 1
+            .venv-py27/bin/python -c "import urllib2; r=urllib2.urlopen(\"http://127.0.0.1:5050/\", timeout=2); print(r.getcode())" && ok=1 && break
+          done
+          cat /tmp/vulnerable-flask.log
+          kill $pid 2>/dev/null || true
+          test "$ok" = 1
+        '
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+    cwd: app
+
+  - name: deploy
+    uses: deploy
+    cwd: app

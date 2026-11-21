@@ -20,9 +20,13 @@ def run_lightweight_security_scan(repo_dir: Path, log_file: Path, report_file: P
             ),
         )
 
+    policy = Path(__file__).resolve().parents[1] / "policies"
     cmd = [
         gitleaks_executable,
         "detect",
+        "--config", str(policy / "gitleaks.toml"),
+        "--gitleaks-ignore-path", str(policy / "gitleaks.ignore"),
+        "--ignore-gitleaks-allow",
         "--source",
         ".",
         "--report-format",
@@ -30,7 +34,10 @@ def run_lightweight_security_scan(repo_dir: Path, log_file: Path, report_file: P
         "--report-path",
         str(report_file),
     ]
-    result = run_command(command=cmd, cwd=repo_dir, log_file=log_file)
+    report_file.unlink(missing_ok=True)  # Never accept a stale report.
+    result = run_command(command=cmd, cwd=repo_dir, log_file=log_file,
+                         env={"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory",
+                              "GIT_CONFIG_VALUE_0": str(repo_dir.resolve())})
 
     if result.exit_code not in (0, 1):
         if result.exit_code == 127:
@@ -48,7 +55,14 @@ def run_lightweight_security_scan(repo_dir: Path, log_file: Path, report_file: P
             summary_message="gitleaks execution failed",
         )
 
-    summary, findings = parse_gitleaks_report(report_file)
+    try:
+        summary, findings = parse_gitleaks_report(report_file)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        return StepRunResult(status="failed", exit_code=2,
+                             summary_message="gitleaks report invalid or incomplete: " + type(exc).__name__)
+    if result.exit_code == 1 and not findings:
+        return StepRunResult(status="failed", exit_code=1,
+                             summary_message="gitleaks exited with findings/error code but report is empty")
     enrich_with_code_snippets(findings, repo_dir, gitleaks_report=report_file)
     found_count = len(findings)
 

@@ -3,7 +3,10 @@ name: capstone-cicd
 services:
   backend:
     profiles: ["managed-backend"]
-    image: ${BACKEND_IMAGE:-yakdoll/capstone-back:125291b89076d4db1f4970a9c84aa21da60cbdac}
+    build:
+      context: ${BACKEND_BUILD_CONTEXT:-../Capstone-Back}
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-capstone-back:local}
     container_name: ${BACKEND_CONTAINER_NAME:-capstone-back}
     env_file:
       - ${BACKEND_ENV_FILE:-.env.backend.example}
@@ -35,11 +38,26 @@ services:
     environment:
       BACKEND_BASE_URL: http://backend:8000
       ENGINE_SHARED_TOKEN: ${ENGINE_SHARED_TOKEN:?Set ENGINE_SHARED_TOKEN in .env}
+      CICD_SANDBOX_IMAGE: ${CICD_SANDBOX_IMAGE:?Set a trusted sandbox image digest}
+      SECURITY_POLICY_MIN_ENVIRONMENT: ${SECURITY_POLICY_MIN_ENVIRONMENT:-production}
       ENGINE_ID: ${ENGINE_ID:-ubuntu-engine-01}
-      POLL_INTERVAL_SEC: ${POLL_INTERVAL_SEC:-15}
+      ENGINE_DOCKER_ONLY: ${ENGINE_DOCKER_ONLY:-true}
+      POLL_INTERVAL_SEC: ${POLL_INTERVAL_SEC:-5}
       POLL_FETCH_LIMIT: ${POLL_FETCH_LIMIT:-5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CICD_ENGINE_DATA_DIR: ${ENGINE_DATA_ROOT:?Run docker/compose-up.sh or set ENGINE_DATA_ROOT}
+      DEPLOY_TARGET: ${DEPLOY_TARGET:-local-docker}
+      DEPLOY_PUBLIC_HOST: ${DEPLOY_PUBLIC_HOST:-127.0.0.1}
+      DEPLOY_BIND_ADDRESS: ${DEPLOY_BIND_ADDRESS:-127.0.0.1}
+      DEPLOY_PORT_START: ${DEPLOY_PORT_START:-10000}
+      DEPLOY_PORT_END: ${DEPLOY_PORT_END:-19999}
+      DEPLOY_DOCKER_NETWORK: ${DEPLOY_DOCKER_NETWORK:-capstone-internal}
+      DEPLOY_STARTUP_TIMEOUT_SEC: ${DEPLOY_STARTUP_TIMEOUT_SEC:-90}
+      DEPLOY_PUBLIC_BASE_URL: ${DEPLOY_PUBLIC_BASE_URL:-}
+      DEPLOY_ROUTER_BIND_ADDRESS: ${DEPLOY_ROUTER_BIND_ADDRESS:-127.0.0.1}
+      DEPLOY_ROUTER_PORT: ${DEPLOY_ROUTER_PORT:-19080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - type: bind
         source: ${ENGINE_DATA_ROOT}
@@ -62,7 +80,35 @@ services:
       start_period: 10s
     networks: [internal]
 
+  public-ingress:
+    image: ${PUBLIC_INGRESS_IMAGE:-caddy:2.11.4-alpine}
+    container_name: ${PUBLIC_INGRESS_CONTAINER_NAME:-capstone-public-ingress}
+    environment:
+      DEPLOY_PUBLIC_HOST: ${DEPLOY_PUBLIC_HOST:?Set DEPLOY_PUBLIC_HOST to the public IPv4 address}
+    ports:
+      - "${PUBLIC_INGRESS_BIND_ADDRESS:-0.0.0.0}:80:80"
+      - "${PUBLIC_INGRESS_BIND_ADDRESS:-0.0.0.0}:443:443"
+    volumes:
+      - type: bind
+        source: ./docker/public-ingress/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: volume
+        source: caddy_data
+        target: /data
+      - type: volume
+        source: caddy_config
+        target: /config
+    restart: unless-stopped
+    networks: [internal]
+
 networks:
   internal:
     name: ${CAPSTONE_NETWORK_NAME:-capstone-internal}
     external: true
+
+volumes:
+  caddy_data:
+    name: capstone-caddy-data
+  caddy_config:
+    name: capstone-caddy-config

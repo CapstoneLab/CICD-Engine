@@ -1,0 +1,44 @@
+name: backend-server-only-workflow
+runtime:
+  type: node
+steps:
+  - name: install-backend-only
+    run:
+      - npm
+      - install
+      - --ignore-scripts
+      - --no-audit
+      - --no-fund
+
+  - name: rebuild-backend-native
+    run:
+      - npm
+      - rebuild
+      - libxmljs2
+      - sqlite3
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test-server
+    run:
+      - npm
+      - run
+      - test:server
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build-server
+    run:
+      - npm
+      - run
+      - build:server
+
+  - name: deploy
+    uses: deploy

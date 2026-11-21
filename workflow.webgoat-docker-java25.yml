@@ -1,0 +1,44 @@
+name: webgoat-docker-java25-workflow
+runtime:
+  type: java
+steps:
+  - name: install-java25
+    run:
+      - bash
+      - -lc
+      - |
+        docker run --rm \
+          -v "$PWD:/repo" \
+          -v "$HOME/.m2:/root/.m2" \
+          -w /repo \
+          eclipse-temurin:25-jdk \
+          bash -lc './mvnw -B -ntp -DskipTests compile'
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    run:
+      - bash
+      - -lc
+      - |
+        docker run --rm \
+          -v "$PWD:/repo" \
+          -v "$HOME/.m2:/root/.m2" \
+          -w /repo \
+          eclipse-temurin:25-jdk \
+          bash -lc './mvnw -B -ntp test'
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+
+  - name: deploy
+    uses: deploy

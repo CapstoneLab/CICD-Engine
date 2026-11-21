@@ -1,0 +1,346 @@
+{
+  "metadata": {
+    "benchmark": "OWASP Benchmark v1.2",
+    "generated_at": "2026-07-31T03:25:08.386810+00:00",
+    "scanner": "semgrep",
+    "scanner_version": "1.157.0",
+    "scanner_command": "cd /home/capstone/CICD-Engine/workspace/run-20260624-017/repo && SEMGREP_ENABLE_VERSION_CHECK=0 semgrep --metrics=off --config /home/capstone/CICD-Engine/analysis/reproducibility/semgrep-auto-rules-20260723.json --json --output /home/capstone/CICD-Engine/analysis/owasp_benchmark_v1_2/run-20260731/semgrep_report.json src/main/java/org/owasp/benchmark/testcode",
+    "source_commit": "0352dbb5a4f1e9c29edb2d648bd869bd9f431dcd",
+    "truth_test_count": 2740,
+    "vulnerable_test_count": 1415,
+    "non_vulnerable_test_count": 1325,
+    "fairness_controls": [
+      "Ground truth is not supplied to the scanner.",
+      "Harmonization contains no Benchmark test IDs or expected labels.",
+      "Raw scanner CWE metadata and strict metrics are preserved.",
+      "Findings are deduplicated at test ID and CWE before scoring.",
+      "All CWE categories in expectedresults-1.2.csv are scored."
+    ]
+  },
+  "artifacts": {
+    "truth": "workspace/run-20260624-017/repo/expectedresults-1.2.csv",
+    "truth_sha256": "1809f6a690c6cf7dd6685df6ebe2eef8fe3ca93d19a7ca0ce45987ca4f5d78e1",
+    "semgrep_report": "analysis/owasp_benchmark_v1_2/run-20260731/semgrep_report.json",
+    "semgrep_report_sha256": "945c018ab70a8adbaae4af6a75fa72cad3275692eb80ad7611b123e0ba6ed226",
+    "harmonization": "analysis/owasp_benchmark_v1_2/cwe_harmonization.json",
+    "harmonization_sha256": "f65e20c0723a0cf0baf48005ea2a13cf115c63d90c70d4d6ddf3b4d9a1544a7d",
+    "rule_config": "analysis/reproducibility/semgrep-auto-rules-20260723.json",
+    "rule_config_sha256": "574df0e554aad5b8e981d05a5eab3008f39654566d57d9fb2f64da3f630a669e"
+  },
+  "diagnostics": {
+    "semgrep_result_count": 2404,
+    "benchmark_target_result_count": 2404,
+    "benchmark_target_results_without_cwe": 0,
+    "unique_test_cwe_rule_detections": 2253,
+    "harmonization_rules": 2,
+    "harmonization_applications_by_rule": {
+      "java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated": 130,
+      "java.lang.security.audit.crypto.desede-is-deprecated.desede-is-deprecated": 130
+    },
+    "harmonization_document": {
+      "schema_version": 1,
+      "benchmark": "OWASP Benchmark v1.2",
+      "policy": "Rule semantics may be harmonized to a Benchmark category, but test IDs and expected labels must never be used in a mapping.",
+      "rule_overrides": {
+        "java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated": {
+          "from_cwes": [
+            326
+          ],
+          "to_cwe": 327,
+          "rationale": "The rule detects use of DES. Semgrep classifies the weakness as CWE-326, while OWASP Benchmark v1.2 classifies its broken/risky symmetric-crypto cases as CWE-327."
+        },
+        "java.lang.security.audit.crypto.desede-is-deprecated.desede-is-deprecated": {
+          "from_cwes": [
+            326
+          ],
+          "to_cwe": 327,
+          "rationale": "The rule detects use of 3DES/DESede. Semgrep classifies the weakness as CWE-326, while OWASP Benchmark v1.2 classifies its broken/risky symmetric-crypto cases as CWE-327."
+        }
+      }
+    }
+  },
+  "strict": {
+    "scope": [
+      "CWE-22",
+      "CWE-78",
+      "CWE-79",
+      "CWE-89",
+      "CWE-90",
+      "CWE-327",
+      "CWE-328",
+      "CWE-330",
+      "CWE-501",
+      "CWE-614",
+      "CWE-643"
+    ],
+    "per_cwe": {
+      "CWE-22": {
+        "tp": 120,
+        "fp": 106,
+        "fn": 13,
+        "tn": 29,
+        "precision": 0.530973,
+        "recall": 0.902256,
+        "f1": 0.668524
+      },
+      "CWE-78": {
+        "tp": 117,
+        "fp": 109,
+        "fn": 9,
+        "tn": 16,
+        "precision": 0.517699,
+        "recall": 0.928571,
+        "f1": 0.664773
+      },
+      "CWE-79": {
+        "tp": 202,
+        "fp": 108,
+        "fn": 44,
+        "tn": 101,
+        "precision": 0.651613,
+        "recall": 0.821138,
+        "f1": 0.726619
+      },
+      "CWE-89": {
+        "tp": 253,
+        "fp": 170,
+        "fn": 19,
+        "tn": 62,
+        "precision": 0.598109,
+        "recall": 0.930147,
+        "f1": 0.728058
+      },
+      "CWE-90": {
+        "tp": 26,
+        "fp": 28,
+        "fn": 1,
+        "tn": 4,
+        "precision": 0.481481,
+        "recall": 0.962963,
+        "f1": 0.641975
+      },
+      "CWE-327": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 130,
+        "tn": 116,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "CWE-328": {
+        "tp": 89,
+        "fp": 0,
+        "fn": 40,
+        "tn": 107,
+        "precision": 1.0,
+        "recall": 0.689922,
+        "f1": 0.816514
+      },
+      "CWE-330": {
+        "tp": 218,
+        "fp": 0,
+        "fn": 0,
+        "tn": 275,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "CWE-501": {
+        "tp": 43,
+        "fp": 18,
+        "fn": 40,
+        "tn": 25,
+        "precision": 0.704918,
+        "recall": 0.518072,
+        "f1": 0.597222
+      },
+      "CWE-614": {
+        "tp": 36,
+        "fp": 0,
+        "fn": 0,
+        "tn": 31,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "CWE-643": {
+        "tp": 14,
+        "fp": 13,
+        "fn": 1,
+        "tn": 7,
+        "precision": 0.518519,
+        "recall": 0.933333,
+        "f1": 0.666667
+      }
+    },
+    "category_aligned_micro": {
+      "tp": 1118,
+      "fp": 552,
+      "fn": 297,
+      "tn": 773,
+      "precision": 0.669461,
+      "recall": 0.790106,
+      "f1": 0.724797
+    },
+    "taxonomy_strict_micro": {
+      "tp": 1118,
+      "fp": 698,
+      "fn": 297,
+      "tn": 773,
+      "precision": 0.615639,
+      "recall": 0.790106,
+      "f1": 0.692046,
+      "same_cwe_fp": 552,
+      "cross_cwe_fp": 146
+    },
+    "macro_average": {
+      "precision": 0.636665,
+      "recall": 0.789673,
+      "f1": 0.682759
+    },
+    "unique_benchmark_test_cwe_detections": 1816
+  },
+  "harmonized": {
+    "scope": [
+      "CWE-22",
+      "CWE-78",
+      "CWE-79",
+      "CWE-89",
+      "CWE-90",
+      "CWE-327",
+      "CWE-328",
+      "CWE-330",
+      "CWE-501",
+      "CWE-614",
+      "CWE-643"
+    ],
+    "per_cwe": {
+      "CWE-22": {
+        "tp": 120,
+        "fp": 106,
+        "fn": 13,
+        "tn": 29,
+        "precision": 0.530973,
+        "recall": 0.902256,
+        "f1": 0.668524
+      },
+      "CWE-78": {
+        "tp": 117,
+        "fp": 109,
+        "fn": 9,
+        "tn": 16,
+        "precision": 0.517699,
+        "recall": 0.928571,
+        "f1": 0.664773
+      },
+      "CWE-79": {
+        "tp": 202,
+        "fp": 108,
+        "fn": 44,
+        "tn": 101,
+        "precision": 0.651613,
+        "recall": 0.821138,
+        "f1": 0.726619
+      },
+      "CWE-89": {
+        "tp": 253,
+        "fp": 170,
+        "fn": 19,
+        "tn": 62,
+        "precision": 0.598109,
+        "recall": 0.930147,
+        "f1": 0.728058
+      },
+      "CWE-90": {
+        "tp": 26,
+        "fp": 28,
+        "fn": 1,
+        "tn": 4,
+        "precision": 0.481481,
+        "recall": 0.962963,
+        "f1": 0.641975
+      },
+      "CWE-327": {
+        "tp": 130,
+        "fp": 0,
+        "fn": 0,
+        "tn": 116,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "CWE-328": {
+        "tp": 89,
+        "fp": 0,
+        "fn": 40,
+        "tn": 107,
+        "precision": 1.0,
+        "recall": 0.689922,
+        "f1": 0.816514
+      },
+      "CWE-330": {
+        "tp": 218,
+        "fp": 0,
+        "fn": 0,
+        "tn": 275,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "CWE-501": {
+        "tp": 43,
+        "fp": 18,
+        "fn": 40,
+        "tn": 25,
+        "precision": 0.704918,
+        "recall": 0.518072,
+        "f1": 0.597222
+      },
+      "CWE-614": {
+        "tp": 36,
+        "fp": 0,
+        "fn": 0,
+        "tn": 31,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "CWE-643": {
+        "tp": 14,
+        "fp": 13,
+        "fn": 1,
+        "tn": 7,
+        "precision": 0.518519,
+        "recall": 0.933333,
+        "f1": 0.666667
+      }
+    },
+    "category_aligned_micro": {
+      "tp": 1248,
+      "fp": 552,
+      "fn": 167,
+      "tn": 773,
+      "precision": 0.693333,
+      "recall": 0.881979,
+      "f1": 0.776361
+    },
+    "taxonomy_strict_micro": {
+      "tp": 1248,
+      "fp": 698,
+      "fn": 167,
+      "tn": 773,
+      "precision": 0.641316,
+      "recall": 0.881979,
+      "f1": 0.742636,
+      "same_cwe_fp": 552,
+      "cross_cwe_fp": 146
+    },
+    "macro_average": {
+      "precision": 0.727574,
+      "recall": 0.880582,
+      "f1": 0.773668
+    },
+    "unique_benchmark_test_cwe_detections": 1946
+  }
+}

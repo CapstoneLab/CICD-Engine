@@ -1,0 +1,43 @@
+{
+  "experiment_date": "2026-07-23",
+  "operating_system": "Ubuntu 26.04 LTS",
+  "cpu": "Intel N95, 4 cores, up to 3.4 GHz",
+  "memory": "7 GiB RAM",
+  "semgrep": {
+    "version": "1.157.0",
+    "experiment_command": "semgrep --config auto --json --output <report> .",
+    "frozen_core_rule_bundle": "analysis/reproducibility/semgrep-auto-rules-20260723.json",
+    "frozen_rule_count": 1074,
+    "bundle_sha256": "574df0e554aad5b8e981d05a5eab3008f39654566d57d9fb2f64da3f630a669e",
+    "semgrep_core_sha256": "a91e426595399208555732f9f8157aac3cfe03bd2de638d0d077aa78afaf87bc",
+    "core_defaults_observed": {
+      "timeout_seconds": 5,
+      "timeout_threshold": 3,
+      "max_memory": 0,
+      "engine": "OSS"
+    },
+    "frozen_bundle_crosscheck": {
+      "rule_id_present": 442,
+      "result_revision_unavailable": 442
+    },
+    "frozen_bundle_validation": "Semgrep core reproduced DT1's two structural findings from the archived rule bundle."
+  },
+  "gitleaks": {
+    "version": "8.21.2",
+    "experiment_command": "gitleaks detect --source . --report-format json --report-path <report>",
+    "frozen_default_config": "analysis/reproducibility/gitleaks-default-v8.21.2.toml",
+    "config_sha256": "2ce9d818ed5aac0d9a36638a317284bd733c26d5069c980829335183397430bb",
+    "binary_sha256": "50b742abd7daad8bbddb6301f3017efb680632d9a5b3b4d8f137b3aac250e359",
+    "explicit_config_validation": "DT4 produced the same 9 (rule,file,line,commit) findings; structural SHA-256 9e7ac31454a160d9e71411dcc81a7715b31f8e554fdc371def5d073980e45313."
+  },
+  "path_handling": {
+    "scanner_default": "VCS-tracked files and repository ignore files",
+    "explicit_exclude_patterns": [],
+    "analysis_only_exclusion": [
+      ".localci/workflow.yml (engine-generated orchestration file)"
+    ],
+    "generated_test_example_files": "included in the automatic scan; classified separately during manual validation"
+  },
+  "raw_output_hash_manifest": "analysis/reproducibility/experiment_output_sha256.csv",
+  "policy_rule_catalog": "analysis/policy_catalog_with_observed_rules.csv"
+}

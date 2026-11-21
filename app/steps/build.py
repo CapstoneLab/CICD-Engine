@@ -217,9 +217,6 @@ def _create_fallback_artifacts(repo_dir: Path, artifacts_dir: Path, build_script
 
 def _should_use_corepack_runner(repo_dir: Path, package_manager: str, log_file: Path) -> bool:
     executable = package_manager_executable(package_manager)
-    if is_command_available(executable):
-        return False
-
     if package_manager not in {"yarn", "pnpm"}:
         return False
 
@@ -229,7 +226,7 @@ def _should_use_corepack_runner(repo_dir: Path, package_manager: str, log_file: 
 
     prepare_cmd = [corepack, "prepare", package_manager_prepare_target(repo_dir, package_manager), "--activate"]
     run_command(command=prepare_cmd, cwd=repo_dir, log_file=log_file)
-    return True
+    return not is_command_available(executable)
 
 
 def _create_node_fallback_directory(repo_dir: Path, output_dir: Path) -> None:

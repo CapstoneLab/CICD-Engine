@@ -1,0 +1,39 @@
+name: pygoat-compatible-workflow
+runtime:
+  type: python
+steps:
+  - name: patch-python314-requirements
+    run:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+        path = Path("requirements.txt")
+        text = path.read_text()
+        text = text.replace("Pillow==9.4.0", "Pillow==12.0.0")
+        text = text.replace("cffi==1.15.1", "cffi==2.0.0")
+        text = text.replace("psycopg2==2.9.3", "psycopg2-binary==2.9.11")
+        path.write_text(text)
+
+  - name: install
+    uses: install
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    uses: test
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+
+  - name: deploy
+    uses: deploy

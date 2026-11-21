@@ -26,6 +26,8 @@ LOG_PATH = data_root(BASE_DIR) / "runs" / "poller.log"
 CONTAINER_MARKER = Path("/.dockerenv")
 
 logger = logging.getLogger("poller")
+# Briefly retain verified exits to handle cancel requests racing process exit.
+_finished_processes: dict[str, subprocess.Popen] = {}
 
 
 def _setup_logging() -> None:
@@ -98,16 +100,29 @@ def _fetch_pending(base_url: str, token: str, engine_id: str, limit: int) -> lis
     return [j for j in jobs if isinstance(j, dict) and j.get("job_id")]
 
 
-def _claim(base_url: str, job_id: str, token: str, engine_id: str) -> bool:
+def _claim_next(base_url: str, token: str, engine_id: str, limit: int, exclude=()) -> list[dict]:
+    status, payload, raw = _http_json("POST", f"{base_url.rstrip('/')}/api/jobs/claim-next?limit={limit}",
+        token=token, engine_id=engine_id, timeout_sec=60, payload={"exclude_job_ids":list(exclude)})
+    if status != 200 or not isinstance(payload, dict):
+        logger.warning("claim-next failed: HTTP %s", status)
+        return []
+    return [j for j in payload.get("jobs", []) if isinstance(j, dict) and j.get("job_id")]
+
+
+def _claim(base_url: str, job_id: str, token: str, engine_id: str) -> dict | None:
     url = f"{base_url.rstrip('/')}/api/jobs/{job_id}/claim"
-    status, _payload, raw = _http_json("POST", url, token=token, engine_id=engine_id)
+    status, payload, raw = _http_json("POST", url, token=token, engine_id=engine_id)
     if status == 200:
-        return True
+        if isinstance(payload, dict) and payload.get("job_id") == job_id:
+            return payload
+        _report_failure(base_url, job_id, token, engine_id, reason="engine_start_failed",
+                        detail="Claim response did not contain a valid job")
+        return None
     if status == 409:
         logger.info("job %s already claimed/finished: %s", job_id, raw[:200])
-        return False
+        return None
     logger.warning("claim failed for %s: HTTP %s  %s", job_id, status, raw[:200])
-    return False
+    return None
 
 
 def _report_failure(
@@ -118,6 +133,7 @@ def _report_failure(
     *,
     reason: str,
     detail: str = "",
+    resume_id: str | None = None,
 ) -> None:
     url = f"{base_url.rstrip('/')}/api/jobs/{job_id}/fail"
     status, _payload, raw = _http_json(
@@ -125,7 +141,7 @@ def _report_failure(
         url,
         token=token,
         engine_id=engine_id,
-        payload={"reason": reason, "detail": detail},
+        payload={"reason": reason, "detail": detail, **({"resume_id":resume_id} if resume_id else {})},
     )
     if status != 200:
         logger.warning("failure report failed for %s: HTTP %s  %s", job_id, status, raw[:200])
@@ -175,8 +191,8 @@ def _spawn_pipeline(
         logger.warning("unknown source %r, defaulting to capstone", source)
         source = "capstone"
     if environment not in {"production", "staging", "development", "feature"}:
-        logger.warning("unknown environment %r, defaulting to development", environment)
-        environment = "development"
+        logger.error("unsupported environment %r; refusing to start pipeline", environment)
+        return None
 
     python_bin = BASE_DIR / ".venv" / "bin" / "python"
     if not python_bin.exists():
@@ -208,6 +224,10 @@ def _spawn_pipeline(
         # approved follow-up job: these High CWEs pass the gate (acknowledged)
         cmd.extend(["--approved-cwes", ",".join(approved_cwes)])
 
+    if job.get("resume_run_id"):
+        cmd.extend(["--resume-run-id", str(job["resume_run_id"])])
+    process_env = {**os.environ, "CICD_RESUME_ID":str(job.get("resume_id") or ""),
+        "CICD_APPROVAL_NOTE":str(job.get("approval_note") or "")}
     spawn_log = data_root(BASE_DIR) / "runs" / f"job-{job_id}.log"
     spawn_log.parent.mkdir(parents=True, exist_ok=True)
     log_fh = spawn_log.open("ab", buffering=0)
@@ -221,19 +241,95 @@ def _spawn_pipeline(
         cwd=str(BASE_DIR),
         stdout=log_fh,
         stderr=subprocess.STDOUT,
-        start_new_session=True,
+        start_new_session=True, env=process_env,
     )
+    proc.resume_id = job.get("resume_id")
     logger.info("spawned pipeline pid=%s job=%s repo=%s branch=%s", proc.pid, job_id, repo_url, branch)
     return proc
 
 
-def _reaper(running: dict[str, subprocess.Popen], base_url: str, token: str, engine_id: str) -> None:
+def _group_alive(pgid: int) -> bool:
+    """Ignore reaped/zombie processes; all runnable members must be gone."""
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
+            if int(fields[2]) == pgid and fields[0] != "Z":
+                return True
+        except (OSError, ValueError, IndexError):
+            continue
+    return False
+
+
+def _cleanup_pipeline_sandboxes(pid: int) -> bool:
+    if not os.getenv("CICD_SANDBOX_IMAGE"):
+        return True
+    owner = f"capstone.sandbox.owner={os.getenv('HOSTNAME', 'local')}:{pid}"
+    try:
+        result = subprocess.run(["docker", "ps", "-aq", "--filter", f"label={owner}"], capture_output=True, text=True, timeout=15, check=True)
+        ids = result.stdout.split()
+        if ids:
+            subprocess.run(["docker", "rm", "-f", *ids], capture_output=True, timeout=20, check=True)
+        return True
+    except (OSError, subprocess.SubprocessError):
+        logger.error("Unable to verify sandbox termination for runner %s", pid)
+        return False
+
+
+def _terminate_pipeline(proc: subprocess.Popen) -> bool:
+    # Every runner is spawned with start_new_session=True, so pid == pgid.
+    for sig, grace in ((signal.SIGTERM, 3), (signal.SIGKILL, 3)):
+        try:
+            os.killpg(proc.pid, sig)
+        except ProcessLookupError:
+            pass
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            proc.poll()
+            if not _group_alive(proc.pid):
+                return _cleanup_pipeline_sandboxes(proc.pid)
+            time.sleep(0.05)
+    return False
+
+
+def _process_cancellations(running, base_url, token, engine_id) -> set[str]:
+    if not running and not _finished_processes:
+        return set()
+    status, payload, _ = _http_json("GET", f"{base_url.rstrip('/')}/api/engine/cancellations", token=token, engine_id=engine_id)
+    if status != 200 or not isinstance(payload, dict):
+        return set()
+    requested = set(payload.get("job_ids", []))
+    for job_id in requested:
+        proc = running.get(job_id) or _finished_processes.get(job_id)
+        # Never acknowledge a runner we do not own or cannot verify.
+        if proc is None or not (getattr(proc, "termination_verified", False) is True or _terminate_pipeline(proc)):
+            continue
+        proc.cancel_pending = True
+        code, _, _ = _http_json("POST", f"{base_url.rstrip('/')}/api/jobs/{job_id}/cancelled", token=token, engine_id=engine_id)
+        if code == 200:
+            running.pop(job_id, None)
+            _finished_processes.pop(job_id, None)
+    return requested
+
+
+def _reaper(running: dict[str, subprocess.Popen], base_url: str, token: str, engine_id: str, cancelling=frozenset()) -> None:
     finished: list[str] = []
     for job_id, proc in running.items():
+        if job_id in cancelling or getattr(proc, "cancel_pending", False):
+            continue
         rc = proc.poll()
         if rc is None:
             continue
-        finished.append(job_id)
+        if not _group_alive(proc.pid):
+            proc.termination_verified = True
+            _finished_processes[job_id] = proc
+            if len(_finished_processes) > 1024:
+                _finished_processes.pop(next(iter(_finished_processes)))
+            finished.append(job_id)
+        if getattr(proc, "exit_reported", False):
+            continue
+        proc.exit_reported = True
         logger.info("pipeline finished job=%s pid=%s exit=%s", job_id, proc.pid, rc)
         if rc != 0:
             _report_failure(
@@ -241,7 +337,7 @@ def _reaper(running: dict[str, subprocess.Popen], base_url: str, token: str, eng
                 job_id,
                 token,
                 engine_id,
-                reason="engine_process_failed",
+                reason="engine_process_failed", resume_id=getattr(proc,"resume_id",None),
                 detail=f"engine process exited with code {rc}",
             )
     for job_id in finished:
@@ -261,9 +357,9 @@ def main() -> int:
     engine_id = os.environ.get("ENGINE_ID", "ubuntu-engine-01").strip() or "ubuntu-engine-01"
     callback_url = f"{base_url.rstrip('/')}/get-results"
     try:
-        poll_interval = max(5, int(os.environ.get("POLL_INTERVAL_SEC", "15")))
+        poll_interval = max(1, int(os.environ.get("POLL_INTERVAL_SEC", "1")))
     except ValueError:
-        poll_interval = 15
+        poll_interval = 1
     try:
         fetch_limit = max(1, int(os.environ.get("POLL_FETCH_LIMIT", "5")))
     except ValueError:
@@ -285,17 +381,21 @@ def main() -> int:
 
     running: dict[str, subprocess.Popen] = {}
 
+    next_fetch = 0.0
     while not stop.is_set():
         try:
-            _reaper(running, base_url, token, engine_id)
-            jobs = _fetch_pending(base_url, token, engine_id, fetch_limit)
+            cancelling = _process_cancellations(running, base_url, token, engine_id)
+            _reaper(running, base_url, token, engine_id, cancelling)
+            jobs = _claim_next(base_url, token, engine_id, fetch_limit, running) if time.monotonic() >= next_fetch else []
+            if time.monotonic() >= next_fetch:
+                next_fetch = time.monotonic() + poll_interval
             for job in jobs:
                 job_id = str(job.get("job_id"))
                 if job_id in running:
                     continue
-                if not _claim(base_url, job_id, token, engine_id):
-                    continue
-                proc = _spawn_pipeline(job, callback_url, token)
+                claimed_job = job
+                # Use freshly validated exception scope, never the pending-list snapshot.
+                proc = _spawn_pipeline(claimed_job, callback_url, token)
                 if proc is not None:
                     running[job_id] = proc
                 else:
@@ -304,13 +404,13 @@ def main() -> int:
                         job_id,
                         token,
                         engine_id,
-                        reason="engine_start_failed",
+                        reason="engine_start_failed", resume_id=claimed_job.get("resume_id"),
                         detail="poller could not spawn local pipeline process",
                     )
         except Exception as exc:  # noqa: BLE001
             logger.exception("poller loop error: %s", exc)
 
-        stop.wait(poll_interval)
+        stop.wait(1)
 
     logger.info("waiting for %s running pipelines to finish...", len(running))
     deadline = time.time() + 60

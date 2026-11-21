@@ -1,0 +1,53 @@
+name: djangogoat-docker-py27-workflow
+runtime:
+  type: python
+steps:
+  - name: patch-python27-requirements
+    run:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+
+        path = Path("requirements.txt")
+        text = path.read_text()
+        text = text.replace("astroid==1.5.3", "astroid==1.6.6")
+        path.write_text(text)
+
+  - name: install-python27
+    run:
+      - bash
+      - -lc
+      - |
+        docker run --rm -v "$PWD:/repo" -w /repo python:2.7-buster bash -lc '
+          python -m pip install --upgrade "pip<21" setuptools wheel
+          python -m virtualenv .venv-py27
+          .venv-py27/bin/python -m pip install --upgrade "pip<21" setuptools wheel
+          .venv-py27/bin/python -m pip install -r requirements.txt
+        '
+
+  - name: lightweight-security
+    uses: lightweight_security_scan
+    continue_on_failure: true
+    args:
+      report_file: gitleaks_report.json
+
+  - name: test
+    run:
+      - bash
+      - -lc
+      - |
+        docker run --rm -v "$PWD:/repo" -w /repo python:2.7-buster bash -lc '
+          .venv-py27/bin/python manage.py test
+        '
+
+  - name: deep-security
+    uses: deep_security_scan
+    args:
+      report_file: semgrep_report.json
+
+  - name: build
+    uses: build
+
+  - name: deploy
+    uses: deploy

@@ -2,6 +2,8 @@
 
 FROM ghcr.io/gitleaks/gitleaks:v8.30.1 AS gitleaks
 
+FROM node:20-bookworm-slim AS node-runtime
+
 FROM python:3.11-slim-bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -19,16 +21,44 @@ RUN apt-get update \
         curl \
         docker.io \
         git \
-        gradle \
         maven \
-        nodejs \
-        npm \
         openjdk-17-jdk-headless \
         openssh-client \
         tini \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# Install the Compose CLI plugin as well as docker.io. Deployment uses docker compose.
+ARG DOCKER_COMPOSE_VERSION=v5.4.0
+RUN set -eu; \
+    arch="$(uname -m)"; \
+    mkdir -p /usr/local/lib/docker/cli-plugins; \
+    cd /tmp; \
+    curl -fsSLO "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${arch}"; \
+    curl -fsSLO "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${arch}.sha256"; \
+    sha256sum -c "docker-compose-linux-${arch}.sha256"; \
+    install -m 0755 "docker-compose-linux-${arch}" /usr/local/lib/docker/cli-plugins/docker-compose; \
+    rm "docker-compose-linux-${arch}" "docker-compose-linux-${arch}.sha256"; \
+    docker compose version
+
 COPY --from=gitleaks /usr/bin/gitleaks /usr/local/bin/gitleaks
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules/ /usr/local/lib/node_modules/
+
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+    && corepack enable \
+    && node --version \
+    && npm --version \
+    && corepack --version
+
+RUN curl -fsSL https://services.gradle.org/distributions/gradle-8.7-bin.zip \
+    -o /tmp/gradle.zip \
+    && unzip -q /tmp/gradle.zip -d /opt \
+    && ln -s /opt/gradle-8.7/bin/gradle /usr/local/bin/gradle \
+    && rm /tmp/gradle.zip \
+    && gradle --version
 
 WORKDIR /app
 

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import time
+import threading
+
+import httpx
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
-from urllib import error, request
 
 from app.models import PipelineRun
 from app.utils.filesystem import save_json
@@ -25,7 +28,9 @@ _STEP_TYPE_MAP = {
     "test": "test",
     "build": "build",
     "deploy": "deploy",
-    "security_gate": "security",
+    "security_gate": "security-gate",
+    "lightweight-security": "security-light",
+    "deep-security": "security-deep",
     "env_check": "env",
     "resolve_workflow": "workflow",
 }
@@ -64,10 +69,19 @@ def _serialize_step(
     *,
     step_order: int | None = None,
     total_steps: int | None = None,
+    logs: list[str] | None = None,
 ) -> dict[str, Any]:
     """Backend-facing step shape. Keeps legacy fields and adds the backend's
     documented fields (step_name, step_type, duration_secs, error_message, metadata)."""
-    error_message = step.summary_message if step.status == "failed" else None
+    error_message = None
+    if step.status == "failed":
+        parts = [step.summary_message] if step.summary_message else []
+        if step.exit_code is not None:
+            parts.append(f"exit code: {step.exit_code}")
+        tail = next((line.strip() for line in reversed(logs or []) if line.strip()), "")
+        if tail and tail not in "\n".join(parts):
+            parts.append(tail[-2000:])
+        error_message = "\n".join(parts)[:4000] or "Step failed without a reported reason"
     serialized = {
         "name": step.step_name,
         "step_name": step.step_name,
@@ -78,6 +92,7 @@ def _serialize_step(
         "error_message": error_message,
         "started_at": step.started_at,
         "finished_at": step.finished_at,
+        "ended_at": step.finished_at,
         "duration_secs": _duration_secs(step.started_at, step.finished_at),
         "log_file": step.log_file,
         "metadata": {},
@@ -162,7 +177,8 @@ def build_callback_payload(
         "ended_at": pipeline_run.finished_at,
         "logs": logs,
         "steps": [
-            _serialize_step(step, step_order=index, total_steps=len(pipeline_run.steps))
+            _serialize_step(step, step_order=index, total_steps=len(pipeline_run.steps),
+                logs=[line for line in logs if line.startswith(f"[{step.step_name}.log]")])
             for index, step in enumerate(pipeline_run.steps, start=1)
         ],
         "security": {
@@ -172,7 +188,7 @@ def build_callback_payload(
         },
         "deployment": deployment,
         "metadata": {
-            "executor": "ubuntu-ci-engine",
+            "executor": "ubuntu-ci-engine", "resume_id":os.getenv("CICD_RESUME_ID") or None,
             "run_id": pipeline_run.run_id,
             "workflow_name": pipeline_run.workflow_name,
             "workflow_source": pipeline_run.workflow_source,
@@ -250,6 +266,7 @@ def post_callback_with_retry(
     retry_delays_sec: list[int] | None = None,
     timeout_sec: int = 10,
 ) -> tuple[bool, dict[str, Any]]:
+    started = time.monotonic()
     delays = [5, 15, 30] if retry_delays_sec is None else retry_delays_sec
     attempts = 1 + len(delays)
 
@@ -263,6 +280,7 @@ def post_callback_with_retry(
         )
         if ok:
             return True, {
+                "elapsed_seconds": round(time.monotonic() - started, 3),
                 "attempts": attempt,
                 "error": None,
                 "http_status": detail,
@@ -273,6 +291,7 @@ def post_callback_with_retry(
             time.sleep(delays[attempt - 1])
 
     return False, {
+        "elapsed_seconds": round(time.monotonic() - started, 3),
         "attempts": attempts,
         "error": last_error,
         "http_status": None,
@@ -285,6 +304,22 @@ def save_callback_delivery_result(run_dir: Path, result: dict[str, Any]) -> Path
     return output_path
 
 
+_callback_clients = threading.local()
+
+
+def _callback_client() -> httpx.Client:
+    # Log delivery and step persistence run on separate threads. Their pools
+    # must not block one another while each reuses its own HTTP connections.
+    client = getattr(_callback_clients, "client", None)
+    if client is None:
+        client = httpx.Client(
+            limits=httpx.Limits(max_connections=2, max_keepalive_connections=2, keepalive_expiry=4),
+            follow_redirects=False,
+        )
+        _callback_clients.client = client
+    return client
+
+
 def _post_once(
     *,
     callback_url: str,
@@ -292,27 +327,22 @@ def _post_once(
     payload: dict[str, Any],
     timeout_sec: int,
 ) -> tuple[bool, str]:
-    body = json.dumps(payload).encode("utf-8")
+    resume_id = os.getenv("CICD_RESUME_ID")
+    if resume_id:
+        payload = {**payload, "metadata":{**(payload.get("metadata") or {}), "resume_id":resume_id}}
     headers = {"Content-Type": "application/json"}
     if callback_token:
         headers["x-callback-token"] = callback_token
-    req = request.Request(
-        callback_url,
-        data=body,
-        method="POST",
-        headers=headers,
-    )
-
     try:
-        with request.urlopen(req, timeout=timeout_sec) as resp:
-            status_code = getattr(resp, "status", None)
-            if status_code and 200 <= status_code < 300:
-                return True, str(status_code)
-            return False, f"non-2xx status: {status_code}"
-    except error.HTTPError as exc:
-        return False, f"http error {exc.code}: {exc.reason}"
-    except error.URLError as exc:
-        return False, f"url error: {exc.reason}"
+        response = _callback_client().post(
+            callback_url, content=json.dumps(payload).encode("utf-8"),
+            headers=headers, timeout=timeout_sec,
+        )
+        if 200 <= response.status_code < 300:
+            return True, str(response.status_code)
+        return False, f"http error {response.status_code}: {response.reason_phrase}"
+    except httpx.HTTPError as exc:
+        return False, f"callback transport error: {exc}"
     except Exception as exc:  # noqa: BLE001
         return False, f"unexpected error: {exc}"
 
@@ -351,12 +381,13 @@ def build_step_callback_payload(
     delivery_id = sha256(delivery_key.encode("utf-8")).hexdigest()
     return {
         "job_id": job_id,
-        "type": "step_complete",
+        "type": "step_started" if step.status == "running" else "step_complete",
         "pipeline_status": _normalize_status(pipeline_run.status),
+        "started_at": pipeline_run.started_at,
         "repo_url": repo_url,
         "branch": branch,
         "step": {
-            **_serialize_step(step, step_order=step_order, total_steps=total_steps),
+            **_serialize_step(step, step_order=step_order, total_steps=total_steps, logs=step_log),
             "delivery_id": delivery_id,
             "logs": step_log,
             "security": {
@@ -366,7 +397,7 @@ def build_step_callback_payload(
         },
         "deployment": deployment,
         "metadata": {
-            "executor": "ubuntu-ci-engine",
+            "executor": "ubuntu-ci-engine", "resume_id":os.getenv("CICD_RESUME_ID") or None,
             "run_id": pipeline_run.run_id,
             "workflow_name": pipeline_run.workflow_name,
             "workflow_source": pipeline_run.workflow_source,
@@ -387,7 +418,7 @@ def post_step_callback(
         callback_token=callback_token,
         payload=payload,
         timeout_sec=timeout_sec,
-        retry_delays_sec=retry_delays_sec or [1, 3, 10],
+        retry_delays_sec=[1, 3, 10] if retry_delays_sec is None else retry_delays_sec,
     )
     if ok:
         return True, f"http {result['http_status']} after {result['attempts']} attempt(s)"

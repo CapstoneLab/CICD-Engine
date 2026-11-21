@@ -11,9 +11,12 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from http.client import HTTPConnection, HTTPException
 from pathlib import Path
 from typing import Iterator
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urljoin
+from urllib.request import urlopen
+from urllib.error import URLError
 
 import yaml
 
@@ -27,6 +30,9 @@ from app.utils.shell import CommandResult, run_command
 MANAGED_LABEL = "com.capstonelab.cicd.managed"
 SERVICE_LABEL = "com.capstonelab.cicd.service-key"
 PORT_LABEL = "com.capstonelab.cicd.host-port"
+# Server runtimes whose "/" may legitimately have no handler. Python gets a
+# /docs redirect instead and static frontends always serve index.html.
+ROOT_FALLBACK_RUNTIMES = frozenset({"java", "node", "nextjs"})
 
 
 @dataclass(frozen=True)
@@ -144,6 +150,16 @@ def run_local_docker_deploy(
     direct_host = public_host if bind_address in {"0.0.0.0", "::"} else bind_address
     direct_service_url = f"{scheme}://{direct_host}:{host_port}"
     service_url = f"{public_base_url}/{owner}/{repo_name}" if public_base_url else direct_service_url
+    root_status = _probe_root_status(
+        *_compose_probe_address(container_name, spec.container_port, host_port), log_file
+    )
+    root_fallback = runtime in ROOT_FALLBACK_RUNTIMES and root_status == 404
+    if root_fallback:
+        append_log(
+            log_file,
+            "The app serves nothing at its root path; the deployment URL shows "
+            "a landing page there. API paths are unaffected.",
+        )
     endpoint = {
         "schema_version": 1,
         "status": "success",
@@ -166,6 +182,10 @@ def run_local_docker_deploy(
         "image": image_name,
         "compose_project": "capstone-deployments",
         "public_path": public_path,
+        # Status of the app's own "/"; root_fallback means the router answers
+        # browsers there with the landing page because the app returned 404.
+        "root_status": root_status,
+        "root_fallback": root_fallback,
         "direct_service_url": direct_service_url,
         "service_url": service_url,
         "service_urls": list(dict.fromkeys([service_url, direct_service_url])),
@@ -248,7 +268,7 @@ def _prepare_runtime_context(
             "  root /usr/share/nginx/html;\n"
             "  index index.html;\n"
             f"  location ~ ^{escaped_path}/(.*)$ {{ try_files /$1 /index.html =404; }}\n"
-            "  location / { try_files $uri $uri/ /index.html; }\n"
+            "  location / { try_files $uri /index.html; }\n"
             "}\n",
             encoding="utf-8",
         )
@@ -333,22 +353,57 @@ def _service_public_path(public_base_url: str, owner: str, repo_name: str) -> st
 
 
 def _rewrite_static_paths(app_dir: Path, public_path: str) -> None:
-    prefixes = ("static", "assets", "images", "img")
-    for html_file in app_dir.rglob("*.html"):
-        content = html_file.read_text(encoding="utf-8", errors="replace")
-        for prefix in prefixes:
-            content = content.replace(f'="/{prefix}/', f'="{public_path}/{prefix}/')
-        for name in ("manifest", "favicon", "logo"):
-            content = content.replace(f'="/{name}', f'="{public_path}/{name}')
-        html_file.write_text(content, encoding="utf-8")
-    for js_file in app_dir.rglob("*.js"):
-        content = js_file.read_text(encoding="utf-8", errors="replace")
-        original = content
-        for prefix in prefixes:
-            content = content.replace(f'"/{prefix}/', f'"{public_path}/{prefix}/')
-            content = content.replace(f"'/{prefix}/", f"'{public_path}/{prefix}/")
-        if content != original:
-            js_file.write_text(content, encoding="utf-8")
+    # Rewrite only references to actual build files, including custom public
+    # directories and backtick strings. Do not rewrite client router patterns.
+    files = {"/" + file.relative_to(app_dir).as_posix() for file in app_dir.rglob("*") if file.is_file()}
+    pattern = re.compile(r"(?P<quote>[\"'`])(?P<url>/[^/\"'`][^\"'`]*)(?P=quote)")
+    def replace(match):
+        value = match.group("url")
+        if urlsplit(value).path not in files:
+            return match.group(0)
+        quote = match.group("quote")
+        return quote + public_path + value + quote
+    for file in app_dir.rglob("*"):
+        if file.suffix not in {".html", ".js", ".css"}:
+            continue
+        content = file.read_text(encoding="utf-8", errors="replace")
+        rewritten = pattern.sub(replace, content)
+        # CSS permits unquoted url(/images/...).
+        if file.suffix == ".css":
+            rewritten = re.sub(r"url\((/[^)\s]+)\)",
+                lambda m: "url(" + public_path + m[1] + ")" if urlsplit(m[1]).path in files else m[0], rewritten)
+        if rewritten != content:
+            file.write_text(rewritten, encoding="utf-8")
+
+
+def _wait_for_static_http(url: str, log_file: Path, timeout: int) -> bool:
+    """Verify routed HTML and its JS/CSS, not only an open TCP socket."""
+    deadline = time.monotonic() + timeout
+    last_error = ""
+    while time.monotonic() < deadline:
+        try:
+            with urlopen(url, timeout=3) as response:
+                if response.status != 200 or "text/html" not in response.headers.get("Content-Type", ""):
+                    raise ValueError("entry page did not return HTML 200")
+                html = response.read(2_000_000).decode("utf-8", errors="replace")
+            resources = re.findall(r'<(?:script|link)\b[^>]*?(?:src|href)=[\"\']([^\"\']+)', html, re.I)
+            for resource in resources:
+                target = urljoin(url, resource)
+                suffix = urlsplit(target).path.lower()
+                if not suffix.endswith((".js", ".css")) or urlsplit(target).netloc != urlsplit(url).netloc:
+                    continue
+                with urlopen(target, timeout=3) as response:
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    expected = "css" if suffix.endswith(".css") else "javascript"
+                    if response.status != 200 or expected not in content_type:
+                        raise ValueError(f"asset {resource} did not return {expected}")
+            append_log(log_file, "Routed HTTP readiness passed: HTML and JS/CSS")
+            return True
+        except (OSError, URLError, ValueError) as exc:
+            last_error = str(exc)
+            time.sleep(0.5)
+    append_log(log_file, f"Routed HTTP readiness failed: {last_error}")
+    return False
 
 
 def _copy_tree(source: Path, destination: Path) -> None:
@@ -597,15 +652,21 @@ def _compose_replace_service(
     cwd: Path,
     log_file: Path,
 ) -> bool:
+    compose_check = _docker(["compose", "version"], cwd=cwd, log_file=log_file)
+    if compose_check.exit_code != 0:
+        raise OSError("Docker Compose plugin is unavailable; install it in the CI engine image")
     state_dir = _state_dir(cwd)
     routes_dir = state_dir / "router" / "routes"
     routes_dir.mkdir(parents=True, exist_ok=True)
+    _preserve_router_routes(routes_dir, cwd=cwd, log_file=log_file)
     default_config = state_dir / "router" / "default.conf"
     default_config.write_text(_router_default_config(), encoding="utf-8")
     route_path = routes_dir / f"{container_name}.conf"
     previous_route = route_path.read_text(encoding="utf-8") if route_path.is_file() else None
     route_path.write_text(
-        _router_service_config(public_path, container_name, container_port, service_key),
+        _router_service_config(
+            public_path, container_name, container_port, service_key, runtime=runtime
+        ),
         encoding="utf-8",
     )
 
@@ -653,8 +714,9 @@ def _compose_replace_service(
         cwd=cwd,
         log_file=log_file,
     )
+    probe_host, probe_port = _compose_probe_address(container_name, container_port, host_port)
     healthy = result.exit_code == 0 and _wait_for_tcp(
-        container_name, container_port, log_file, _startup_timeout()
+        probe_host, probe_port, log_file, _startup_timeout()
     )
     if healthy:
         config_test = _docker(
@@ -669,6 +731,10 @@ def _compose_replace_service(
             healthy = reload_result.exit_code == 0
         else:
             healthy = False
+    if healthy and runtime in {"react", "vue", "angular"}:
+        router_host, router_port = _compose_probe_address(
+            "capstone-deploy-router", 80, int(os.environ.get("DEPLOY_ROUTER_PORT", "19080")))
+        healthy = _wait_for_static_http(f"http://{router_host}:{router_port}{public_path}/", log_file, _startup_timeout())
     if healthy:
         append_log(log_file, f"Compose service is active: {service_name}")
         return True
@@ -686,6 +752,31 @@ def _compose_replace_service(
         log_file=log_file,
     )
     return False
+
+
+def _preserve_router_routes(routes_dir: Path, *, cwd: Path, log_file: Path) -> None:
+    """Carry all active routes over when moving the shared router's state root."""
+    result = _docker(
+        ["inspect", "-f", '{{range .Mounts}}{{if eq .Destination "/etc/nginx/routes"}}{{.Source}}{{end}}{{end}}',
+         "capstone-deploy-router"], cwd=cwd, log_file=log_file,
+    )
+    if result.exit_code != 0:
+        if "no such" in result.output.lower():
+            return  # First deployment: there is no shared router to preserve.
+        raise OSError("Cannot inspect existing shared router; refusing to replace its routes")
+    if result.output.strip() == str(routes_dir):
+        return
+    copied = _docker(["cp", "capstone-deploy-router:/etc/nginx/routes/.", str(routes_dir)],
+                     cwd=cwd, log_file=log_file)
+    if copied.exit_code != 0:
+        raise OSError("Cannot preserve existing shared router routes")
+
+
+def _compose_probe_address(container_name: str, container_port: int, host_port: int) -> tuple[str, int]:
+    # The engine is a sibling container: localhost is not the Docker host.
+    if Path("/.dockerenv").exists():
+        return container_name, container_port
+    return "127.0.0.1", host_port
 
 
 def _read_compose(path: Path) -> dict:
@@ -797,14 +888,17 @@ def _router_default_config() -> str:
 
 
 def _router_service_config(
-    public_path: str, container_name: str, container_port: int, service_key: str
+    public_path: str,
+    container_name: str,
+    container_port: int,
+    service_key: str,
+    *,
+    runtime: str | None = None,
 ) -> str:
     escaped_path = re.escape(public_path)
-    return (
-        f"location = {public_path} {{ return 301 {public_path}/; }}\n"
-        f"location ^~ {public_path}/ {{\n"
+    proxy = (
         f"  set $cicd_upstream {container_name}:{container_port};\n"
-        f"  rewrite ^{escaped_path}/(.*)$ /$1 break;\n"
+        "{rewrite}"
         "  proxy_pass http://$cicd_upstream;\n"
         "  proxy_http_version 1.1;\n"
         "  proxy_set_header Upgrade $http_upgrade;\n"
@@ -817,8 +911,89 @@ def _router_service_config(
         "  proxy_set_header X-Forwarded-Port $cicd_forwarded_port;\n"
         f"  proxy_set_header X-Forwarded-Prefix {public_path};\n"
         f"  add_header X-CICD-Service {service_key} always;\n"
-        "}\n"
     )
+    if runtime == "python":
+        root = f"location = {public_path}/ {{ return 302 {public_path}/docs; }}\n"
+    elif runtime in ROOT_FALLBACK_RUNTIMES:
+        # API-only apps often map nothing at "/". Browsers opening the
+        # deployment URL then get the framework's bare 404, which reads as a
+        # failed deployment. Only that one case is replaced by a landing page;
+        # every other path, method and status still comes from the app.
+        fallback = "@cicd_root_" + re.sub(r"[^A-Za-z0-9_]", "_", container_name)
+        root = (
+            f"location = {public_path}/ {{\n"
+            + proxy.replace("{rewrite}", "  rewrite ^ / break;\n")
+            + "  proxy_intercept_errors on;\n"
+            f"  error_page 404 = {fallback};\n"
+            "}\n"
+            f"location {fallback} {{\n"
+            '  set $cicd_root_client "$request_method:$http_accept";\n'
+            '  if ($cicd_root_client !~* "^(GET|HEAD):.*text/html") { return 404; }\n'
+            "  default_type text/html;\n"
+            "  charset utf-8;\n"
+            f"  add_header X-CICD-Service {service_key} always;\n"
+            "  add_header X-CICD-Root-Fallback 1 always;\n"
+            "  add_header Cache-Control no-store always;\n"
+            f"  return 200 '{_root_fallback_page(public_path)}';\n"
+            "}\n"
+        )
+    else:
+        root = ""
+    return (
+        f"location = {public_path} {{ return 301 {public_path}/; }}\n"
+        f"{root}"
+        f"location ^~ {public_path}/ {{\n"
+        + proxy.replace("{rewrite}", f"  rewrite ^{escaped_path}/(.*)$ /$1 break;\n")
+        + "}\n"
+    )
+
+
+def _root_fallback_page(public_path: str) -> str:
+    """Landing page for a running service with no handler at "/".
+
+    The result is embedded in a single-quoted nginx string, so it must not
+    contain a quote, a backslash or "$" (nginx would expand it as a variable).
+    """
+    safe_path = re.sub(r"[^A-Za-z0-9._/-]", "", public_path)
+    service = "/".join(safe_path.rsplit("/", 2)[-2:])
+    return (
+        '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{service} · 실행 중</title>"
+        "<style>"
+        ":root{color-scheme:light dark}"
+        "body{margin:0;min-height:100vh;display:grid;place-items:center;"
+        "font-family:system-ui,sans-serif;background:Canvas;color:CanvasText}"
+        "main{max-width:34rem;padding:2rem 1.25rem;line-height:1.6}"
+        "h1{font-size:1.4rem;margin:.6rem 0 1rem;word-break:break-all}"
+        ".ok{display:inline-block;padding:.15rem .6rem;border-radius:999px;"
+        "background:#16a34a;color:#fff;font-size:.8rem;font-weight:600}"
+        "</style></head><body><main>"
+        '<span class="ok">실행 중 · Running</span>'
+        f"<h1>{service}</h1>"
+        "<p>서비스는 정상적으로 배포되어 실행 중입니다.</p>"
+        "</main></body></html>"
+    )
+
+
+def _probe_root_status(host: str, port: int, log_file: Path, attempts: int = 3) -> int | None:
+    """HTTP status of the app's own "/" (redirects not followed), or None."""
+    last_error = ""
+    for attempt in range(attempts):
+        connection = HTTPConnection(host, port, timeout=5)
+        try:
+            connection.request("GET", "/", headers={"Accept": "text/html,*/*"})
+            status = connection.getresponse().status
+            append_log(log_file, f"Service root path responded with HTTP {status}")
+            return status
+        except (OSError, HTTPException) as exc:
+            last_error = str(exc)
+            if attempt + 1 < attempts:
+                time.sleep(1)
+        finally:
+            connection.close()
+    append_log(log_file, f"Service root path could not be probed: {last_error}")
+    return None
 
 
 def _compose(

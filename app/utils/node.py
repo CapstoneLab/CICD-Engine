@@ -178,6 +178,16 @@ def package_manager_prepare_target(repo_dir: Path, package_manager: str) -> str:
         lowered = raw_value.lower()
         if lowered.startswith(f"{package_manager}@") and "@" in raw_value:
             return raw_value
+
+    if package_manager == "yarn":
+        yarn_lock = repo_dir / "yarn.lock"
+        try:
+            lock_header = yarn_lock.read_text(encoding="utf-8", errors="replace")[:4096]
+        except OSError:
+            lock_header = ""
+        if "# yarn lockfile v1" in lock_header:
+            return "yarn@1.22.22"
+
     return f"{package_manager}@stable"
 
 

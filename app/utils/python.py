@@ -118,7 +118,7 @@ def venv_exists(repo_dir: Path) -> bool:
 
 
 def create_venv_command(repo_dir: Path) -> list[str]:
-    return [python_executable(), "-m", "venv", str(venv_dir(repo_dir))]
+    return [python_executable(), "-m", "venv", "--copies", str(venv_dir(repo_dir))]
 
 
 def effective_python_executable(repo_dir: Path) -> str:

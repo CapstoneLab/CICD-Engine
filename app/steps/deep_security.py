@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import yaml
+from app.security_catalog import ALL_CWES, normalize_selected_cwes, normalize_cwe
 
 from app.models import StepRunResult
 from app.scanners.ai_recommender import generate_recommendations
@@ -18,7 +20,11 @@ def run_deep_security_scan(
     log_file: Path,
     report_file: Path,
     ai_recommendation: bool = True,
+    selected_items: list[str] | None = None,
 ) -> StepRunResult:
+    selected = normalize_selected_cwes(selected_items)
+    if selected == {"CWE-798"}:
+        return StepRunResult(status="skipped", exit_code=0, summary_message="선택한 Secret 항목은 Gitleaks에서 검사했습니다")
     semgrep_executable = resolve_executable("semgrep")
     if not semgrep_executable:
         return StepRunResult(
@@ -32,7 +38,26 @@ def run_deep_security_scan(
     semgrep_home = Path("/tmp") / "cicd-engine-semgrep-home"
     semgrep_home.mkdir(parents=True, exist_ok=True)
 
-    cmd = [semgrep_executable, "--config", "auto", "--json", "--output", str(report_file), "."]
+    policy = Path(__file__).resolve().parents[1] / "policies" / "semgrep-security-audit.yml"
+    if selected != set(ALL_CWES):
+        document = yaml.safe_load(policy.read_text(encoding="utf-8"))
+        rules = []
+        for rule in document["rules"]:
+            metadata = rule.get("metadata") or {}
+            cwes = metadata.get("cwe") or metadata.get("cwe_id") or []
+            if not isinstance(cwes, list):
+                cwes = [cwes]
+            if any(normalize_cwe(cwe) in selected for cwe in cwes):
+                rules.append(rule)
+        if not rules:
+            return StepRunResult(status="failed", exit_code=2, summary_message="선택 항목에 대응하는 SAST 규칙이 없습니다. 검사 범위를 확인하세요")
+        policy = report_file.with_suffix(".rules.yml")
+        policy.write_text(yaml.safe_dump({"rules": rules}, sort_keys=False), encoding="utf-8")
+    cmd = [semgrep_executable, "--config", str(policy), "--disable-nosem", "--no-git-ignore",
+           "--x-ignore-semgrepignore-files", "--metrics=off",
+           "--exclude=node_modules", "--exclude=.venv", "--exclude=.git",
+           "--json", "--output", str(report_file), "."]
+    report_file.unlink(missing_ok=True)  # Never accept a stale report.
     result = run_command(
         command=cmd,
         cwd=repo_dir,
@@ -75,7 +100,21 @@ def run_deep_security_scan(
             summary_message="semgrep execution failed before producing a valid report",
         )
 
-    summary, findings = parse_semgrep_report(report_file)
+    try:
+        summary, findings = parse_semgrep_report(report_file, selected_cwes=selected if selected != set(ALL_CWES) else None)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        return StepRunResult(status="failed", exit_code=2,
+                             summary_message="semgrep report invalid or incomplete: " + type(exc).__name__)
+    if result.exit_code == 1 and not findings:
+        return StepRunResult(status="failed", exit_code=1,
+                             summary_message="semgrep exited with findings/error code but report is empty")
+    if selected != set(ALL_CWES):
+        findings = [f for f in findings if f.cwe in selected]
+        counts = {level: sum(f.severity == level for f in findings) for level in ("critical", "high", "medium", "low")}
+        for level, count in counts.items():
+            setattr(summary, level + "_count", count)
+        summary.max_detected_severity = next((level for level, count in counts.items() if count), "none")
+        summary.max_cvss_score = max((f.cvss_score for f in findings if f.cvss_score is not None), default=None)
     enrich_with_code_snippets(findings, repo_dir)
 
     if ai_recommendation and findings:

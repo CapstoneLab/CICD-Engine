@@ -4,12 +4,21 @@ import json
 import re
 from pathlib import Path
 
+from app.security_policy import effective_severity
 from app.models import SecurityFinding, SecuritySummary
 from app.security_catalog import lookup_by_cwe, normalize_cwe
 
 
-def _extract_cwe(extra: dict) -> str | None:
+def _extract_cwe(extra: dict, selected_cwes: set[str] | None = None) -> str | None:
     metadata = extra.get("metadata", {}) or {}
+    if selected_cwes:
+        candidates = metadata.get("cwe") or metadata.get("cwe_id") or extra.get("cwe") or []
+        if not isinstance(candidates, list):
+            candidates = [candidates]
+        for candidate in candidates:
+            normalized = normalize_cwe(candidate)
+            if normalized in selected_cwes:
+                return normalized
     for candidate in (metadata.get("cwe"), metadata.get("cwe_id"), extra.get("cwe")):
         normalized = normalize_cwe(candidate)
         if normalized:
@@ -18,23 +27,14 @@ def _extract_cwe(extra: dict) -> str | None:
 
 
 def _normalize_severity(extra: dict) -> str:
-    candidates = [
-        str(extra.get("severity", "")).lower(),
-        str(extra.get("metadata", {}).get("severity", "")).lower(),
-        str(extra.get("metadata", {}).get("impact", "")).lower(),
-    ]
-
-    for value in candidates:
-        if "critical" in value:
-            return "critical"
-        if "high" in value or "error" in value:
-            return "high"
-        if "medium" in value or "warning" in value:
-            return "medium"
-        if "low" in value or "info" in value:
-            return "low"
-
-    return "low"
+    levels = []
+    metadata = extra.get("metadata") or {}
+    for raw in (extra.get("severity"), metadata.get("severity"), metadata.get("impact")):
+        value = str(raw or "").lower()
+        for aliases, level in (({"critical"}, "critical"), ({"high", "error"}, "high"), ({"medium", "warning"}, "medium"), ({"low", "info", "inventory", "experiment"}, "low")):
+            if value in aliases:
+                levels.append(level)
+    return max(levels, key={"low":0,"medium":1,"high":2,"critical":3}.get) if levels else "high"
 
 
 def _max_severity(critical: int, high: int, medium: int, low: int) -> str:
@@ -80,42 +80,24 @@ def _extract_cvss_score(extra: dict) -> float | None:
             try:
                 return float(candidate)
             except ValueError:
-                match = re.search(r"(\d+(?:\.\d+)?)", candidate)
-                if match:
-                    try:
-                        return float(match.group(1))
-                    except ValueError:
-                        continue
+                continue
 
     return None
 
 
-def parse_semgrep_report(report_file: Path) -> tuple[SecuritySummary, list[SecurityFinding]]:
-    if not report_file.exists():
-        summary = SecuritySummary(
-            scanner_name="semgrep",
-            scan_type="deep",
-            critical_count=0,
-            high_count=0,
-            medium_count=0,
-            low_count=0,
-            max_detected_severity="none",
-        )
-        return summary, []
-
-    try:
-        data = json.loads(report_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        summary = SecuritySummary(
-            scanner_name="semgrep",
-            scan_type="deep",
-            critical_count=0,
-            high_count=0,
-            medium_count=0,
-            low_count=0,
-            max_detected_severity="none",
-        )
-        return summary, []
+def parse_semgrep_report(report_file: Path, selected_cwes: set[str] | None = None) -> tuple[SecuritySummary, list[SecurityFinding]]:
+    # File/JSON errors propagate to the scan step and halt the pipeline.
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise ValueError("Semgrep report must contain a results array")
+    if not isinstance(data.get("paths"), dict) or not data["paths"].get("scanned"):
+        raise ValueError("Semgrep scanned no files; coverage is unverified")
+    if data.get("errors"):
+        raise ValueError("Semgrep report contains scan errors; scan is incomplete")
+    if any(not isinstance(item, dict) or not item.get("path")
+           or not isinstance(item.get("start"), dict)
+           or not isinstance(item.get("extra"), dict) for item in data["results"]):
+        raise ValueError("Semgrep report contains malformed findings")
 
     findings: list[SecurityFinding] = []
     critical = 0
@@ -130,13 +112,13 @@ def parse_semgrep_report(report_file: Path) -> tuple[SecuritySummary, list[Secur
 
         # Grade is derived from the CWE via the 16-item catalog. semgrep's own
         # severity is only a fallback for CWEs outside the catalog.
-        cwe = _extract_cwe(extra)
+        cwe = _extract_cwe(extra, selected_cwes)
         catalog_item = lookup_by_cwe(cwe)
         if catalog_item is not None:
-            severity = catalog_item.grade
+            severity = effective_severity(_normalize_severity(extra), catalog_item.grade, cvss_score)
             policy_item = catalog_item.key
         else:
-            severity = _normalize_severity(extra)
+            severity = effective_severity(_normalize_severity(extra), cvss=cvss_score)
             policy_item = None
 
         if cvss_score is not None:

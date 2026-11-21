@@ -246,7 +246,7 @@ gitleaks finding의 `code_snippet`은 시크릿 값이 `****`로 백엔드에서
 
 ## 백엔드 측 작업 체크리스트
 
-프론트 작업 전 백엔드(`http://192.168.0.2:8010`)가 다음을 준비해야 함:
+프론트 작업 전 Ubuntu LAN 백엔드(`http://192.168.0.4:8000`)가 다음을 준비해야 함:
 
 1. **DB 스키마**에 `security_findings`, `security_verdicts`, `pipeline_runs` 테이블 (또는 동등한 스토리지)
 2. **콜백 핸들러**(`POST /get-results`)가 새 `security.verdict` 필드 저장
