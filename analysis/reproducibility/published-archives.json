@@ -2,6 +2,13 @@
   "release_url": "https://github.com/CapstoneLab/CICD-Engine/releases/tag/capstone-materials-2026-11-21",
   "archives": [
     {
+      "file": "runs_20260624_dvna.zip",
+      "storage": "git",
+      "size": 48614,
+      "sha256": "9102ef0a8b2c68c875e36c80de573a473a3c52021fcf63100977d27171432c66",
+      "redacted_entries": 0
+    },
+    {
       "file": "runs_20260624_juiceshop.zip",
       "storage": "git",
       "size": 216623,
@@ -30,11 +37,32 @@
       "redacted_entries": 4
     },
     {
+      "file": "runs_20260710_Meteor3DEditor.zip",
+      "storage": "git",
+      "size": 6939,
+      "sha256": "773825e176c5487689ae50234a494f937a0e3aee15cb3013bb6ef9f48999f20b",
+      "redacted_entries": 0
+    },
+    {
       "file": "runs_20260710_collaboration-demo.zip",
       "storage": "git",
       "size": 22059,
       "sha256": "c8b25d1ddf58f738e11f559359cad84571b0a2bf06023c0c527da73b6c78952a",
       "redacted_entries": 1
+    },
+    {
+      "file": "runs_20260710_digital-twin-water.zip",
+      "storage": "git",
+      "size": 46722,
+      "sha256": "0eea7a8a4bfbb0fa9e6b6ab72ec51156f88639d02500b9ad1271e0f60732d6c1",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260710_nus-digital-twin.zip",
+      "storage": "git",
+      "size": 5940,
+      "sha256": "0fe6b87b644c19c8c4d2375eda8a8c2347738c498a2e4a20f69542bcf0a00aef",
+      "redacted_entries": 0
     },
     {
       "file": "runs_20260710_openremote.zip",
@@ -51,11 +79,39 @@
       "redacted_entries": 1
     },
     {
+      "file": "runs_20260717_DT4_DTaaS.zip",
+      "storage": "git",
+      "size": 9573,
+      "sha256": "e89165a6841ee1e48b0672b36d9a1da37d4139fc7a08193844980609565adc16",
+      "redacted_entries": 0
+    },
+    {
       "file": "runs_20260717_DTaaS.zip",
       "storage": "git",
       "size": 79830,
       "sha256": "044cfdd80e9a2f4eb8397cc1d35219467bbefd650ed8e121d8a743dc4db7f419",
       "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260717_Digital-Twin-IoT.zip",
+      "storage": "git",
+      "size": 21571,
+      "sha256": "97d4068709bfa30aaf79a941e8d03fed5777390d3dade45bc79c164c27300234",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260717_SmartCity_DigitalTwin.zip",
+      "storage": "git",
+      "size": 26728,
+      "sha256": "62c5efc167559de7c651a948becc8ea776fb542cbdf9068d07090f095c726dd6",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260717_aps-digital-twin.zip",
+      "storage": "git",
+      "size": 31971,
+      "sha256": "ffcdff0e31da55ec269befc42276cf1963f3da7257877419855ce3cb37dfec85",
+      "redacted_entries": 0
     },
     {
       "file": "runs_20260717_digital-twin-demo.zip",
@@ -65,11 +121,39 @@
       "redacted_entries": 1
     },
     {
+      "file": "runs_20260717_digital-twin-smart-home.zip",
+      "storage": "git",
+      "size": 28278,
+      "sha256": "ef9d935d0b94ddf4f2b356e4bc2fe41808170554934422a11c45208eb8def451",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260717_digital-twins-explorer.zip",
+      "storage": "git",
+      "size": 26818,
+      "sha256": "a44b9cbbfda85431f1ef79ffd8ddfd5f55dee7d3706bb6aaa8da391dc17bbb1d",
+      "redacted_entries": 0
+    },
+    {
       "file": "runs_20260717_forge-digital-twin.zip",
       "storage": "git",
       "size": 79830,
       "sha256": "044cfdd80e9a2f4eb8397cc1d35219467bbefd650ed8e121d8a743dc4db7f419",
       "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260717_itwinjs-core.zip",
+      "storage": "git",
+      "size": 5175,
+      "sha256": "ee82d67bff8d17617215152d47c25a78ba6a1519816a3294348c65c806d9e2e3",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260717_viewer-components-react.zip",
+      "storage": "git",
+      "size": 9573,
+      "sha256": "e89165a6841ee1e48b0672b36d9a1da37d4139fc7a08193844980609565adc16",
+      "redacted_entries": 0
     },
     {
       "file": "runs_20260718_Meteor3DEditor.zip",
@@ -93,11 +177,48 @@
       "redacted_entries": 4
     },
     {
+      "file": "runs_20260718_nus-digital-twin.zip",
+      "storage": "github-release",
+      "size": 980826763,
+      "sha256": "5f3b8eb0a974b569332104c0810741201e708482574a6337f9c713050c832911",
+      "redacted_entries": 6,
+      "download_url": "https://github.com/CapstoneLab/CICD-Engine/releases/download/capstone-materials-2026-11-21/runs_20260718_nus-digital-twin.zip"
+    },
+    {
+      "file": "runs_20260718_nus-digital-twin_error.zip",
+      "storage": "git",
+      "size": 28572,
+      "sha256": "7bb39356b3728557bd2e81067257cfdddfbb0c5683ae037c80c2dbe99f9faac3",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260718_viewer-components-react_retry1.zip",
+      "storage": "git",
+      "size": 79818,
+      "sha256": "8f7a2432064a76d130702d50ec5f1301039f397adc8e16de5042a520aae14b54",
+      "redacted_entries": 0
+    },
+    {
+      "file": "runs_20260719_nus-digital-twin_v2.zip",
+      "storage": "github-release",
+      "size": 980826877,
+      "sha256": "3b14ae6e075a34f95709fbec2d4fe2982ca0aa17bf21be742e6f5e3b45db93bf",
+      "redacted_entries": 6,
+      "download_url": "https://github.com/CapstoneLab/CICD-Engine/releases/download/capstone-materials-2026-11-21/runs_20260719_nus-digital-twin_v2.zip"
+    },
+    {
+      "file": "warning:.zip",
+      "storage": "git",
+      "size": 1398,
+      "sha256": "bb33689ffe7fe7f86c2e318d1030edee95e0eb043407728b395b151ae8d80c0e",
+      "redacted_entries": 0
+    },
+    {
       "file": "웹기반DT_KCI_재현성자료.zip",
       "storage": "git",
-      "size": 596672,
-      "sha256": "09047fbfd7379117a2c3f07f1d4a7d3bbcf45bd346474964df5ce87da9851051",
-      "redacted_entries": 0
+      "size": 596743,
+      "sha256": "0a6bcb8f9edb41b2608caf52ea2ff8b5b13651189c886d7b5b771c1eef228233",
+      "redacted_entries": 1
     }
   ]
 }
