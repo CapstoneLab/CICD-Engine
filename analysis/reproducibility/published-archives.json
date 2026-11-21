@@ -1,0 +1,103 @@
+{
+  "release_url": "https://github.com/CapstoneLab/CICD-Engine/releases/tag/capstone-materials-2026-11-21",
+  "archives": [
+    {
+      "file": "runs_20260624_juiceshop.zip",
+      "storage": "git",
+      "size": 216623,
+      "sha256": "307f2546bb4fe5be296682ce5d090ece6154ad517880d22ed6d1aa8d65f4b2df",
+      "redacted_entries": 5
+    },
+    {
+      "file": "runs_20260624_nodegoat.zip",
+      "storage": "git",
+      "size": 63152,
+      "sha256": "2fc7d8a3ad24b7d43594b93cca8d0144917834f4c60906ace593cdb0b9a12d4d",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260624_webgoat.zip",
+      "storage": "git",
+      "size": 704809,
+      "sha256": "afee2e92e5461bd8be949e5c61f9ddc64772b88a895de8d42de8d5ed5e61be95",
+      "redacted_entries": 12
+    },
+    {
+      "file": "runs_20260710_GeoTwin.zip",
+      "storage": "git",
+      "size": 62724,
+      "sha256": "1bc4769757a2107d4f6e25e9237c818164fe918840a47a3184517c84a631f9c9",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260710_collaboration-demo.zip",
+      "storage": "git",
+      "size": 22059,
+      "sha256": "c8b25d1ddf58f738e11f559359cad84571b0a2bf06023c0c527da73b6c78952a",
+      "redacted_entries": 1
+    },
+    {
+      "file": "runs_20260710_openremote.zip",
+      "storage": "git",
+      "size": 142810,
+      "sha256": "a1183eab9a978cadae54f3667b4fafd8f9fe7ab51797d85d21dd5800382910fe",
+      "redacted_entries": 5
+    },
+    {
+      "file": "runs_20260710_visual-analytics-demo.zip",
+      "storage": "git",
+      "size": 22027,
+      "sha256": "a6e36a950b2d147074cea0259da85f3fc29aee8d811bd577f53636e238f67808",
+      "redacted_entries": 1
+    },
+    {
+      "file": "runs_20260717_DTaaS.zip",
+      "storage": "git",
+      "size": 79830,
+      "sha256": "044cfdd80e9a2f4eb8397cc1d35219467bbefd650ed8e121d8a743dc4db7f419",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260717_digital-twin-demo.zip",
+      "storage": "git",
+      "size": 21894,
+      "sha256": "ae53a599c39bedf9d1ad9c32e93131ab5c62fac7dc8f29144b12ee6419593938",
+      "redacted_entries": 1
+    },
+    {
+      "file": "runs_20260717_forge-digital-twin.zip",
+      "storage": "git",
+      "size": 79830,
+      "sha256": "044cfdd80e9a2f4eb8397cc1d35219467bbefd650ed8e121d8a743dc4db7f419",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260718_Meteor3DEditor.zip",
+      "storage": "git",
+      "size": 108181,
+      "sha256": "981ca2af3a41087a2c1b3e6bd84b2bcd84690a60a0aaafd088d4e7d75870f6f5",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260718_itwinjs-core.zip",
+      "storage": "git",
+      "size": 252136,
+      "sha256": "d2b2e62ba9daae33c682aab85486a021967c0b6e39ad5b3feafa259f6712374a",
+      "redacted_entries": 4
+    },
+    {
+      "file": "runs_20260718_itwinjs-core_retry1.zip",
+      "storage": "git",
+      "size": 252136,
+      "sha256": "d2b2e62ba9daae33c682aab85486a021967c0b6e39ad5b3feafa259f6712374a",
+      "redacted_entries": 4
+    },
+    {
+      "file": "웹기반DT_KCI_재현성자료.zip",
+      "storage": "git",
+      "size": 596672,
+      "sha256": "09047fbfd7379117a2c3f07f1d4a7d3bbcf45bd346474964df5ce87da9851051",
+      "redacted_entries": 0
+    }
+  ]
+}

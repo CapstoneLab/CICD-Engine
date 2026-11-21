@@ -61,3 +61,16 @@ unzip -l runs_$(date +%Y%m%d)_juiceshop.zip | tail # 내용 확인
   tar -czf runs_$(date +%Y%m%d)_juiceshop.tar.gz "$LATEST"
   ```
 - run 결과 폴더는 **삭제·덮어쓰기 금지**. 압축본만 따로 만든다.
+
+
+## GitHub 공개 자료 (2026-11-21)
+
+코드·논문·보고서와 소형 실험 압축파일은 이 저장소에 보관합니다.
+일반 Git 업로드 한도를 넘는 아래 두 파일은 [졸업작품 자료 Release](https://github.com/CapstoneLab/CICD-Engine/releases/tag/capstone-materials-2026-11-21)에서 다운로드할 수 있습니다.
+
+- `runs_20260718_nus-digital-twin.zip`
+- `runs_20260719_nus-digital-twin_v2.zip`
+
+공개용 압축파일에서 토큰·키 및 키 조각을 마스킹했습니다. 원본은 로컬에 보존되어 있으며, 마스킹으로 인해 원본 실험 산출물의 해시와 공개용 파일의 해시는 다를 수 있습니다. 공개용 파일의 SHA-256과 보관 위치는 `analysis/reproducibility/published-archives.json`을 참고하세요. 테스트 코드와 탐지 규칙은 유지하되, GitHub에서 차단하는 Slack 웹훅 예시 문자열은 공개용 규칙 파일에서도 마스킹했습니다.
+
+테스트용 Java 프로젝트의 로컬 추가 커밋은 [CapstoneLab/sample_java5](https://github.com/CapstoneLab/sample_java5)에 보관합니다.

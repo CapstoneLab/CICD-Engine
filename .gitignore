@@ -32,3 +32,7 @@ Thumbs.db
 
 # Docker Compose runtime data
 .docker-data/
+
+# Large experiment archives are published as GitHub Release assets.
+/runs_20260718_nus-digital-twin.zip
+/runs_20260719_nus-digital-twin_v2.zip
